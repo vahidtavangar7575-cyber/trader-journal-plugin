@@ -8,3 +8,8 @@ import './tradeCalendarDates.test';
 import './economicCalendarService.test';
 import './economicCalendar.test';
 import './tradeCalendarSnapshot.test';
+import './traderJournalForm.test';
+import './tradeBlocks.test';
+import './temporaryAttachmentRegistry.test';
+import './linkedTrades.test';
+import './traderJournalDateTime.test';

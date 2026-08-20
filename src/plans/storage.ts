@@ -10,6 +10,7 @@ import { mergeFrontmatterTags } from '../utils/frontmatterTags';
 import { classifyTraderJournalPath } from '../journal/pathScope';
 import { INDEX_READ_CONCURRENCY, mapWithConcurrency } from '../utils/async';
 import { setTraderJournalNoteType, TRADER_JOURNAL_NOTE_TYPE_KEY } from '../utils/noteType';
+import { upsertLinkedTradeRef } from './linkedTrades';
 
 const PLAN_NOTE_TYPE = 'trader-journal-live-plan';
 const SCHEMA_VERSION = 1;
@@ -226,7 +227,7 @@ export async function linkTradeToPlan(
 ): Promise<void> {
 	const entry = await getTradePlanById(plugin, planId);
 	if (!entry) {
-		return;
+		throw new Error(`Could not find trade plan ${planId}.`);
 	}
 
 	const tradeId = stringifyValue(tradeRef.trade_id);
@@ -236,19 +237,14 @@ export async function linkTradeToPlan(
 	}
 
 	const existingRefs = normalizeLinkedTrades(entry.plan.linked_trades);
-	const alreadyLinked = existingRefs.some((existingRef) =>
-		tradeId
-			? stringifyValue(existingRef.trade_id) === tradeId
-			: stringifyValue(existingRef.file_path) === filePath,
-	);
-
-	if (alreadyLinked) {
+	const upsertResult = upsertLinkedTradeRef(existingRefs, tradeRef);
+	if (!upsertResult.changed) {
 		return;
 	}
 
 	await saveTradePlan(plugin, {
 		...entry.plan,
-		linked_trades: [...existingRefs, tradeRef],
+		linked_trades: upsertResult.linkedTrades,
 	}, entry.filePath);
 }
 

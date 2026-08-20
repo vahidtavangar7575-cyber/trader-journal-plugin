@@ -7,12 +7,11 @@ import {
 	formatRr,
 	formatSide,
 	formatTags,
-	parseTradeJson,
 	stringifyValue,
 } from './format';
 import { extractTrades, hasTradeBlocks, parseFrontmatter, splitFrontmatter } from './parser';
-import { TRADE_CODE_BLOCK_LANGUAGE } from './types';
 import type { TradeEntry, TradeJournalType } from './types';
+import { renderTradeBlock, replaceTradeBlockById } from './tradeBlocks';
 import { getTradePlanById } from '../plans/storage';
 import { createWikiLink } from '../utils/wikiLinks';
 import { mergeFrontmatterTags } from '../utils/frontmatterTags';
@@ -29,7 +28,6 @@ const DEFAULT_JOURNAL_TYPE: TradeJournalType = 'backtest';
 const SCHEMA_VERSION = 1;
 const SUMMARY_START = '<!-- trader-journal:summary:start -->';
 const SUMMARY_END = '<!-- trader-journal:summary:end -->';
-const TRADE_BLOCK_PATTERN = /```trader-journal-trade\s*\n([\s\S]*?)\n```/g;
 
 export interface DailyTradeStats {
 	tradeCount: number;
@@ -49,6 +47,18 @@ export interface RebuildDailyNoteStatsResult {
 	stats: DailyTradeStats;
 	updated: boolean;
 	skipped: boolean;
+}
+
+export class TradePostSaveError extends Error {
+	readonly file: TFile;
+	readonly originalError: unknown;
+
+	constructor(file: TFile, originalError: unknown) {
+		super(originalError instanceof Error ? originalError.message : 'Trade was saved, but post-save processing failed.');
+		this.name = 'TradePostSaveError';
+		this.file = file;
+		this.originalError = originalError;
+	}
 }
 
 interface JournalIdentity {
@@ -93,16 +103,20 @@ export async function saveTradeToDailyNote(
 
 	await plugin.app.vault.process(file, (content) => {
 		const { frontmatter, body } = splitFrontmatter(content);
-		const bodyWithTrade = appendTradeBlock(ensureTradesSection(body), trade, plugin.settings.language);
+		const bodyWithTrade = upsertTradeBlock(ensureTradesSection(body), trade, plugin.settings.language);
 
 		return `${frontmatter}${bodyWithTrade}`;
 	});
 
-	await rebuildDailyNoteStats(plugin, file, {
-		symbol,
-		journalDate,
-		journalType,
-	});
+	try {
+		await rebuildDailyNoteStats(plugin, file, {
+			symbol,
+			journalDate,
+			journalType,
+		});
+	} catch (error) {
+		throw new TradePostSaveError(file, error);
+	}
 
 	return file;
 }
@@ -123,23 +137,21 @@ export async function updateTradeInJournalFile(
 	}
 
 	let updated = false;
-	await plugin.app.vault.process(file, (content) =>
-		content.replace(TRADE_BLOCK_PATTERN, (block, source: string) => {
-			const { trade: existingTrade } = parseTradeJson(source);
-			if (stringifyValue(existingTrade?.id) !== tradeId) {
-				return block;
-			}
-
-			updated = true;
-			return `\`\`\`${TRADE_CODE_BLOCK_LANGUAGE}\n${JSON.stringify(trade, null, '\t')}\n\`\`\``;
-		}),
-	);
+	await plugin.app.vault.process(file, (content) => {
+		const result = replaceTradeBlockById(content, trade);
+		updated = result.replaced;
+		return result.content;
+	});
 
 	if (!updated) {
 		throw new Error('Could not find trade block to update.');
 	}
 
-	await rebuildDailyNoteStats(plugin, file);
+	try {
+		await rebuildDailyNoteStats(plugin, file);
+	} catch (error) {
+		throw new TradePostSaveError(file, error);
+	}
 	return file;
 }
 
@@ -296,11 +308,15 @@ function renderInitialNote(
 	return `---\n${frontmatter}---\n\n${renderDailySummary(symbol, journalDate, journalType, stats, language)}\n\n## Trades\n`;
 }
 
-function appendTradeBlock(body: string, trade: TradeEntry, language: TraderJournalLanguage): string {
-	const heading = renderTradeHeading(trade, language);
-	const json = JSON.stringify(trade, null, '\t');
+function upsertTradeBlock(body: string, trade: TradeEntry, language: TraderJournalLanguage): string {
+	const replacement = replaceTradeBlockById(body, trade);
+	if (replacement.replaced) {
+		return replacement.content;
+	}
 
-	return `${body.trimEnd()}\n\n${heading}\n\n\`\`\`${TRADE_CODE_BLOCK_LANGUAGE}\n${json}\n\`\`\`\n`;
+	const heading = renderTradeHeading(trade, language);
+
+	return `${body.trimEnd()}\n\n${heading}\n\n${renderTradeBlock(trade)}\n`;
 }
 
 function renderTradeHeading(trade: TradeEntry, language: TraderJournalLanguage): string {
