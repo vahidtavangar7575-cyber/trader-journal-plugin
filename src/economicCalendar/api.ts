@@ -10,46 +10,62 @@ import type {
 
 export const ECONOMIC_CALENDAR_URL = 'https://nfs.faireconomy.media/ff_calendar_thisweek.json';
 
-const API_WEEK_TIME_ZONE = 'America/New_York';
+export const ECONOMIC_CALENDAR_SOURCE_TIME_ZONE = 'America/New_York';
 const REQUEST_COOLDOWN_MS = 5 * 60 * 1000;
 
 export class EconomicCalendarService {
-	private pendingRequest: Promise<EconomicCalendarSnapshot> | null = null;
+	private readonly pendingRequests = new Map<string, Promise<EconomicCalendarSnapshot>>();
 
-	constructor(private readonly plugin: TraderJournalPlugin) {}
+	constructor(
+		private readonly plugin: TraderJournalPlugin,
+		private readonly request: typeof requestUrl = requestUrl,
+		private readonly getNow: () => Date = () => new Date(),
+	) {}
 
 	async loadThisWeek(): Promise<EconomicCalendarSnapshot> {
-		const weekKey = getWeekKey(new Date(), API_WEEK_TIME_ZONE);
+		const now = this.getNow();
+		const weekKey = getWeekKey(now, ECONOMIC_CALENDAR_SOURCE_TIME_ZONE);
 		const cache = this.plugin.economicCalendarCache;
 
 		if (cache?.weekKey === weekKey) {
 			return createSnapshot(cache, true);
 		}
+		const pendingRequest = this.pendingRequests.get(weekKey);
+		if (pendingRequest) {
+			return pendingRequest;
+		}
 
 		const lastRequestAt = this.plugin.economicCalendarLastRequestAt;
-		if (lastRequestAt && Date.now() - Date.parse(lastRequestAt) < REQUEST_COOLDOWN_MS) {
+		const lastRequestWeekKey = lastRequestAt
+			? getWeekKey(new Date(lastRequestAt), ECONOMIC_CALENDAR_SOURCE_TIME_ZONE)
+			: null;
+		if (
+			lastRequestAt &&
+			lastRequestWeekKey === weekKey &&
+			now.getTime() - Date.parse(lastRequestAt) < REQUEST_COOLDOWN_MS
+		) {
 			throw new Error('Economic calendar request is waiting for the five-minute cooldown.');
 		}
 
-		if (!this.pendingRequest) {
-			this.pendingRequest = this.fetchAndCache(weekKey).finally(() => {
-				this.pendingRequest = null;
-			});
-		}
-
-		return this.pendingRequest;
+		const request = this.fetchAndCache(weekKey).finally(() => {
+			if (this.pendingRequests.get(weekKey) === request) {
+				this.pendingRequests.delete(weekKey);
+			}
+		});
+		this.pendingRequests.set(weekKey, request);
+		return request;
 	}
 
 	private async fetchAndCache(weekKey: string): Promise<EconomicCalendarSnapshot> {
-		await this.plugin.markEconomicCalendarRequestAttempt(new Date().toISOString());
-		const response = await requestUrl({
+		await this.plugin.markEconomicCalendarRequestAttempt(this.getNow().toISOString());
+		const response = await this.request({
 			url: ECONOMIC_CALENDAR_URL,
 			method: 'GET',
 		});
 		const events = parseEconomicCalendarEvents(response.json);
 		const cache: EconomicCalendarCache = {
 			weekKey,
-			fetchedAt: new Date().toISOString(),
+			fetchedAt: this.getNow().toISOString(),
 			events,
 		};
 		await this.plugin.saveEconomicCalendarCache(cache);

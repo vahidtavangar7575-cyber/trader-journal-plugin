@@ -37,3 +37,7 @@ export function stringifyYaml(value: unknown): string {
 export function parseYaml(): unknown {
 	return {};
 }
+
+export async function requestUrl(): Promise<{ json: unknown }> {
+	throw new Error('requestUrl must be stubbed by the test.');
+}

@@ -4,3 +4,7 @@ import './planRange.test';
 import './async.test';
 import './noteType.test';
 import './review.test';
+import './tradeCalendarDates.test';
+import './economicCalendarService.test';
+import './economicCalendar.test';
+import './tradeCalendarSnapshot.test';
