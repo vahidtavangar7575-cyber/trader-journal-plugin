@@ -1488,6 +1488,10 @@ button.trader-journal-trade-detail__link:focus-visible {
 
 .trader-journal-calendar button.trader-journal-calendar-card__open {
 	display: flex;
+	align-items: baseline;
+	justify-content: flex-start;
+	justify-self: stretch;
+	width: 100%;
 	min-width: 0;
 	border: 0;
 	background: transparent;
@@ -1524,12 +1528,14 @@ button.trader-journal-trade-detail__link:focus-visible {
 }
 
 .trader-journal-calendar-card__symbol {
+	display: block;
 	min-width: 0;
 	color: var(--text-normal);
 	font-size: var(--font-ui-medium);
 	line-height: 1.2;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	text-align: left;
 	white-space: nowrap;
 }
 
