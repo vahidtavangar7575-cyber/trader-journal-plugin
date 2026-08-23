@@ -1,6 +1,7 @@
 import type { JournalCalendarSnapshot, JournalCalendarTrade } from '../../trades/journalIndex';
 import { normalizeTradeReview } from '../../trades/review';
-import { stringifyValue } from '../../trades/format';
+import { formatResult, formatSide, stringifyValue } from '../../trades/format';
+import type { TraderJournalLanguage } from '../../settings';
 import { getDashboardTrades } from '../dashboardStats';
 import type { TradeDrilldownQuery, TradeDrilldownSort } from './types';
 
@@ -18,10 +19,11 @@ export function filterTradeDrilldownTrades(
 	trades: readonly JournalCalendarTrade[],
 	search: string,
 	sort: TradeDrilldownSort,
+	language: TraderJournalLanguage = 'en',
 ): JournalCalendarTrade[] {
 	const normalizedSearch = search.trim().toLocaleLowerCase();
 	return trades
-		.filter((trade) => !normalizedSearch || getSearchText(trade).includes(normalizedSearch))
+		.filter((trade) => !normalizedSearch || getSearchText(trade, language).includes(normalizedSearch))
 		.sort((first, second) => compareTrades(first, second, sort));
 }
 
@@ -46,13 +48,15 @@ function matchesCriterion(trade: JournalCalendarTrade, query: TradeDrilldownQuer
 	return review.plan_adherence === query.criterion.value;
 }
 
-function getSearchText(trade: JournalCalendarTrade): string {
+function getSearchText(trade: JournalCalendarTrade, language: TraderJournalLanguage): string {
 	return [
 		trade.symbol,
-		trade.side,
+		stringifyValue(trade.trade.side),
+		formatSide(trade.trade.side, language),
 		trade.setup,
 		trade.timeframe,
-		trade.result,
+		stringifyValue(trade.trade.result),
+		formatResult(trade.trade.result, language),
 		trade.rr,
 		trade.notes,
 		trade.filePath,

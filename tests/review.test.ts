@@ -4,11 +4,14 @@ import {
 	DEFAULT_RECENT_TRADE_FILTERS,
 	filterRecentTrades,
 	getDashboardTrades,
+	getOpenPlans,
+	getPlanMetrics,
 	getReviewMetrics,
 	getTradePlanLinkMetrics,
 	getUnreviewedClosedLiveTradeCount,
 } from '../src/dashboard/dashboardStats';
 import type { JournalCalendarSnapshot, JournalCalendarTrade } from '../src/trades/journalIndex';
+import type { JournalCalendarPlan, JournalPlanSnapshot } from '../src/plans/planIndex';
 import { isTradeReviewed, normalizeTradeReview } from '../src/trades/review';
 import type { TradeEntry, TradeReview } from '../src/trades/types';
 import {
@@ -65,32 +68,64 @@ void test('aggregates mistake frequency and signed RR by plan adherence', () => 
 	]);
 });
 
-void test('counts linked and unplanned live trades and averages by referenced plans', () => {
+void test('counts linked, unplanned, and orphaned live trades by existing plans', () => {
 	const linkedPlanAFirst = createTrade('win', 2, undefined, 'NQ', 'plan-a');
 	const linkedPlanASecond = createTrade('loss', 1, undefined, 'NQ', 'plan-a');
 	const linkedPlanB = createTrade('win', 1, undefined, 'NQ', 'plan-b');
 	const unplannedNq = createTrade('loss', 1, undefined, 'NQ');
 	const linkedEs = createTrade('win', 1, undefined, 'ES', 'plan-es');
+	const orphanedNq = createTrade('win', 1, undefined, 'NQ', 'missing-plan');
 	const snapshot = createSnapshot([
 		linkedPlanAFirst,
 		linkedPlanASecond,
 		linkedPlanB,
 		unplannedNq,
 		linkedEs,
+		orphanedNq,
+	]);
+	const planSnapshot = createPlanSnapshot([
+		{ id: 'plan-a', symbol: 'NQ' },
+		{ id: 'plan-b', symbol: 'NQ' },
+		{ id: 'plan-es', symbol: 'ES' },
 	]);
 
-	assert.deepEqual(getTradePlanLinkMetrics(snapshot, 'NQ'), {
+	assert.deepEqual(getTradePlanLinkMetrics(snapshot, planSnapshot, 'NQ'), {
 		linkedTradeCount: 3,
 		unplannedTradeCount: 1,
+		orphanedTradeCount: 1,
 		executedPlanCount: 2,
 		tradesPerExecutedPlan: 1.5,
 	});
-	assert.deepEqual(getTradePlanLinkMetrics(snapshot, 'YM'), {
+	assert.deepEqual(getTradePlanLinkMetrics(snapshot, planSnapshot, 'YM'), {
 		linkedTradeCount: 0,
 		unplannedTradeCount: 0,
+		orphanedTradeCount: 0,
 		executedPlanCount: 0,
 		tradesPerExecutedPlan: 0,
 	});
+});
+
+void test('reconciles plan execution metrics from existing live trades', () => {
+	const linkedTrade = createTrade('win', 2, undefined, 'NQ', 'plan-a');
+	const tradeSnapshot = createSnapshot([linkedTrade]);
+	const planSnapshot = createPlanSnapshot([
+		{ id: 'plan-a', symbol: 'NQ' },
+		{ id: 'plan-b', symbol: 'NQ' },
+	]);
+
+	assert.deepEqual(getPlanMetrics(planSnapshot, tradeSnapshot, 'NQ'), {
+		totalCount: 2,
+		openCount: 2,
+		closedCount: 0,
+		cancelledCount: 0,
+		withTradesCount: 1,
+		executionRate: 50,
+		openWithoutTradesCount: 1,
+	});
+	assert.deepEqual(
+		getOpenPlans(planSnapshot, tradeSnapshot, 'NQ').map((plan) => [plan.id, plan.linkedTradeCount]),
+		[['plan-b', 0], ['plan-a', 1]],
+	);
 });
 
 void test('filters recent trades by search, outcome, side, setup, review, and plan link', () => {
@@ -137,6 +172,27 @@ void test('filters recent trades by search, outcome, side, setup, review, and pl
 		...DEFAULT_RECENT_TRADE_FILTERS,
 		outcome: 'open',
 	}), [openLinked]);
+	assert.deepEqual(filterRecentTrades(trades, {
+		...DEFAULT_RECENT_TRADE_FILTERS,
+		query: 'thắng',
+		review: 'reviewed',
+	}, 'vi'), [reviewedLinked]);
+});
+
+void test('treats a missing plan ID as unplanned in recent trade filters', () => {
+	const linked = createTrade('win', 1, undefined, 'NQ', 'plan-a');
+	const orphaned = createTrade('loss', 1, undefined, 'NQ', 'missing-plan');
+	const unplanned = createTrade('loss', 1, undefined, 'NQ');
+	const planSnapshot = createPlanSnapshot([{ id: 'plan-a', symbol: 'NQ' }]);
+
+	assert.deepEqual(filterRecentTrades([linked, orphaned, unplanned], {
+		...DEFAULT_RECENT_TRADE_FILTERS,
+		plan: 'linked',
+	}, 'en', planSnapshot), [linked]);
+	assert.deepEqual(filterRecentTrades([linked, orphaned, unplanned], {
+		...DEFAULT_RECENT_TRADE_FILTERS,
+		plan: 'unplanned',
+	}, 'en', planSnapshot), [orphaned, unplanned]);
 });
 
 void test('counts only closed unreviewed live trades for the selected symbol', () => {
@@ -226,6 +282,35 @@ void test('filters dashboard trades for today, yesterday, and a custom date rang
 		dateFrom: '2026-08-10',
 		dateTo: '2026-08-13',
 	}, now), [yesterdayTrade, earlierTrade]);
+	assert.deepEqual(getDashboardTrades(snapshot, {
+		journalType: 'live',
+		period: '7d',
+		symbol: '',
+	}, now), [todayTrade, yesterdayTrade, earlierTrade]);
+	assert.deepEqual(getDashboardTrades(snapshot, {
+		journalType: 'live',
+		period: '30d',
+		symbol: '',
+	}, now), [todayTrade, yesterdayTrade, earlierTrade]);
+	assert.deepEqual(getDashboardTrades(snapshot, {
+		journalType: 'live',
+		period: 'month',
+		symbol: '',
+	}, now), [todayTrade, yesterdayTrade, earlierTrade]);
+	assert.deepEqual(getDashboardTrades(snapshot, {
+		journalType: 'live',
+		period: 'custom',
+		symbol: '',
+		dateFrom: '2026-08-14',
+		dateTo: '2026-08-10',
+	}, now), []);
+	assert.deepEqual(getDashboardTrades(snapshot, {
+		journalType: 'live',
+		period: 'custom',
+		symbol: '',
+		dateFrom: '2026-02-30',
+		dateTo: '2026-08-14',
+	}, now), []);
 });
 
 function createReview(
@@ -277,6 +362,19 @@ function createSnapshot(trades: JournalCalendarTrade[]): JournalCalendarSnapshot
 		},
 		dayDates: ['2026-08-14'],
 		tradeCount: trades.length,
+	};
+}
+
+function createPlanSnapshot(plans: Array<{ id: string; symbol: string }>): JournalPlanSnapshot {
+	return {
+		planCount: plans.length,
+		plans: plans.map(({ id, symbol }, index) => ({
+			id,
+			symbol,
+			status: 'open',
+			linkedTradeCount: 99,
+			sortTime: index,
+		} as JournalCalendarPlan)),
 	};
 }
 

@@ -1,5 +1,5 @@
 import type { ViewStateResult, WorkspaceLeaf } from 'obsidian';
-import { ItemView } from 'obsidian';
+import { ItemView, Notice } from 'obsidian';
 import { StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type TraderJournalPlugin from '../../main';
@@ -7,6 +7,7 @@ import { TRADE_REVIEW_MISTAKE_TAGS, TRADE_REVIEW_PLAN_ADHERENCE_OPTIONS } from '
 import { getTranslator } from '../../i18n';
 import { TradeDrilldown } from './TradeDrilldown';
 import type { TradeDrilldownCriterion, TradeDrilldownQuery } from './types';
+import { isValidDateKey } from '../dashboardDates';
 
 export const TRADE_DRILLDOWN_VIEW_TYPE = 'trader-journal-trade-drilldown';
 const TRADE_DRILLDOWN_ICON = 'list-filter';
@@ -26,17 +27,22 @@ export async function openTradeDrilldown(
 	plugin: TraderJournalPlugin,
 	query: TradeDrilldownQuery,
 ): Promise<void> {
-	let leaf = plugin.app.workspace.getLeavesOfType(TRADE_DRILLDOWN_VIEW_TYPE)[0];
-	if (!leaf) {
-		leaf = plugin.app.workspace.getLeaf('tab');
-	}
-	await leaf.setViewState({
-		type: TRADE_DRILLDOWN_VIEW_TYPE,
-		active: true,
-		state: { query },
-	});
+	try {
+		let leaf = plugin.app.workspace.getLeavesOfType(TRADE_DRILLDOWN_VIEW_TYPE)[0];
+		if (!leaf) {
+			leaf = plugin.app.workspace.getLeaf('tab');
+		}
+		await leaf.setViewState({
+			type: TRADE_DRILLDOWN_VIEW_TYPE,
+			active: true,
+			state: { query },
+		});
 
-	plugin.app.workspace.setActiveLeaf(leaf, { focus: true });
+		plugin.app.workspace.setActiveLeaf(leaf, { focus: true });
+	} catch (error) {
+		console.error('Trader Journal failed to open trade drill-down', error);
+		new Notice(getTranslator(plugin.settings.language)('drilldown.openError'));
+	}
 }
 
 class TradeDrilldownView extends ItemView {
@@ -107,6 +113,9 @@ function readQuery(state: unknown): TradeDrilldownQuery | null {
 	}
 	const dateFrom = readDate(filters.dateFrom);
 	const dateTo = readDate(filters.dateTo);
+	if (filters.period === 'custom' && (!dateFrom || !dateTo || dateFrom > dateTo)) {
+		return null;
+	}
 	return {
 		criterion,
 		filters: {
@@ -120,7 +129,7 @@ function readQuery(state: unknown): TradeDrilldownQuery | null {
 }
 
 function readDate(value: unknown): string | null {
-	return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+	return isValidDateKey(value) ? value : null;
 }
 
 function isCriterion(value: Record<string, unknown>): value is TradeDrilldownCriterion {

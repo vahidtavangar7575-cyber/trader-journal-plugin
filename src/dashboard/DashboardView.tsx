@@ -1,5 +1,5 @@
 import type { WorkspaceLeaf } from 'obsidian';
-import { ItemView } from 'obsidian';
+import { ItemView, Notice } from 'obsidian';
 import { StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type TraderJournalPlugin from '../main';
@@ -17,17 +17,22 @@ export function registerTraderJournalDashboardView(plugin: TraderJournalPlugin):
 }
 
 export async function openTraderJournalDashboard(plugin: TraderJournalPlugin): Promise<void> {
-	let leaf = plugin.app.workspace.getLeavesOfType(TRADER_JOURNAL_DASHBOARD_VIEW_TYPE)[0];
+	try {
+		let leaf = plugin.app.workspace.getLeavesOfType(TRADER_JOURNAL_DASHBOARD_VIEW_TYPE)[0];
 
-	if (!leaf) {
-		leaf = plugin.app.workspace.getLeaf('tab');
-		await leaf.setViewState({
-			type: TRADER_JOURNAL_DASHBOARD_VIEW_TYPE,
-			active: true,
-		});
+		if (!leaf) {
+			leaf = plugin.app.workspace.getLeaf('tab');
+			await leaf.setViewState({
+				type: TRADER_JOURNAL_DASHBOARD_VIEW_TYPE,
+				active: true,
+			});
+		}
+
+		plugin.app.workspace.setActiveLeaf(leaf, { focus: true });
+	} catch (error) {
+		console.error('Trader Journal failed to open dashboard', error);
+		new Notice(getTranslator(plugin.settings.language)('dashboard.openError'));
 	}
-
-	plugin.app.workspace.setActiveLeaf(leaf, { focus: true });
 }
 
 class TraderJournalDashboardView extends ItemView {

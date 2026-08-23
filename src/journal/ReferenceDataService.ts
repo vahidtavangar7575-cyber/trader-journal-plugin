@@ -12,6 +12,7 @@ import { stringifyValue } from '../trades/format';
 import { classifyTraderJournalPath, isPathInFolder } from './pathScope';
 
 const FILE_UPDATE_DEBOUNCE_MS = 100;
+type SetupSubscriber = (setups: TradeSetupDefinition[]) => void;
 
 export class ReferenceDataService {
 	private readonly planEntriesByPath = new Map<string, TradePlanFileEntry>();
@@ -19,6 +20,7 @@ export class ReferenceDataService {
 	private readonly setupsByPath = new Map<string, TradeSetupDefinition>();
 	private readonly setupsById = new Map<string, TradeSetupDefinition>();
 	private readonly fileUpdateTimers = new Map<string, number>();
+	private readonly setupSubscribers = new Set<SetupSubscriber>();
 	private updateQueue: Promise<void> = Promise.resolve();
 	private startPromise: Promise<void> | null = null;
 	private started = false;
@@ -31,7 +33,21 @@ export class ReferenceDataService {
 
 	async listSetups(): Promise<TradeSetupDefinition[]> {
 		await this.ensureStarted();
-		return [...this.setupsByPath.values()].sort((first, second) => first.name.localeCompare(second.name));
+		return this.getSetupsSnapshot();
+	}
+
+	subscribeSetups(subscriber: SetupSubscriber, onError?: (error: unknown) => void): () => void {
+		this.setupSubscribers.add(subscriber);
+		if (this.initialized) {
+			subscriber(this.getSetupsSnapshot());
+		} else {
+			void this.ensureStarted().catch((error: unknown) => {
+				console.error('Trader Journal failed to initialize setup reference data', error);
+				onError?.(error);
+			});
+		}
+
+		return () => this.setupSubscribers.delete(subscriber);
 	}
 
 	async getSetupById(id: string): Promise<TradeSetupDefinition | null> {
@@ -179,6 +195,7 @@ export class ReferenceDataService {
 		}
 		this.rebuildIdMaps();
 		this.initialized = true;
+		this.notifySetupSubscribers();
 	}
 
 	private async updateFile(file: TFile): Promise<void> {
@@ -202,6 +219,9 @@ export class ReferenceDataService {
 		}
 
 		this.rebuildIdMaps();
+		if (kind === 'setup') {
+			this.notifySetupSubscribers();
+		}
 	}
 
 	private removePath(path: string): void {
@@ -210,24 +230,42 @@ export class ReferenceDataService {
 		if (planChanged || setupChanged) {
 			this.rebuildIdMaps();
 		}
+		if (setupChanged) {
+			this.notifySetupSubscribers();
+		}
 	}
 
 	private removePathPrefix(pathPrefix: string): void {
-		let changed = false;
+		let planChanged = false;
+		let setupChanged = false;
 		for (const path of this.planEntriesByPath.keys()) {
 			if (isPathInFolder(path, pathPrefix)) {
 				this.planEntriesByPath.delete(path);
-				changed = true;
+				planChanged = true;
 			}
 		}
 		for (const path of this.setupsByPath.keys()) {
 			if (isPathInFolder(path, pathPrefix)) {
 				this.setupsByPath.delete(path);
-				changed = true;
+				setupChanged = true;
 			}
 		}
-		if (changed) {
+		if (planChanged || setupChanged) {
 			this.rebuildIdMaps();
+		}
+		if (setupChanged) {
+			this.notifySetupSubscribers();
+		}
+	}
+
+	private getSetupsSnapshot(): TradeSetupDefinition[] {
+		return [...this.setupsByPath.values()].sort((first, second) => first.name.localeCompare(second.name));
+	}
+
+	private notifySetupSubscribers(): void {
+		const setups = this.getSetupsSnapshot();
+		for (const subscriber of this.setupSubscribers) {
+			subscriber(setups);
 		}
 	}
 
@@ -274,5 +312,6 @@ export class ReferenceDataService {
 			window.clearTimeout(timer);
 		}
 		this.fileUpdateTimers.clear();
+		this.setupSubscribers.clear();
 	}
 }

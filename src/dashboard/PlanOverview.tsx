@@ -5,23 +5,25 @@ import type { JournalCalendarPlan, JournalPlanSnapshot } from '../plans/planInde
 import type { TraderJournalLanguage } from '../settings';
 import type { JournalCalendarSnapshot } from '../trades/journalIndex';
 import { TradePlanModal } from '../ui/TradePlanModal';
-import { getOpenPlans, getPlanMetrics, getTradePlanLinkMetrics } from './dashboardStats';
+import { getOpenPlans, getTradePlanLinkMetrics, type PlanMetrics } from './dashboardStats';
 import { DashboardIconButton } from './DashboardIconButton';
-import type { KeyboardEvent, MouseEvent } from 'react';
+import { useMemo } from 'react';
 
 interface PlanOverviewProps {
 	language: TraderJournalLanguage;
+	metrics: PlanMetrics;
 	plugin: TraderJournalPlugin;
 	snapshot: JournalPlanSnapshot;
 	tradeSnapshot: JournalCalendarSnapshot;
 	symbol: string;
 }
 
-export function PlanOverview({ language, plugin, snapshot, tradeSnapshot, symbol }: PlanOverviewProps) {
+export function PlanOverview({ language, metrics, plugin, snapshot, tradeSnapshot, symbol }: PlanOverviewProps) {
 	const tr = getTranslator(language);
-	const metrics = getPlanMetrics(snapshot, symbol);
-	const openPlans = getOpenPlans(snapshot, symbol);
-	const tradePlanMetrics = getTradePlanLinkMetrics(tradeSnapshot, symbol);
+	const { openPlans, tradePlanMetrics } = useMemo(() => ({
+		openPlans: getOpenPlans(snapshot, tradeSnapshot, symbol),
+		tradePlanMetrics: getTradePlanLinkMetrics(tradeSnapshot, snapshot, symbol),
+	}), [snapshot, symbol, tradeSnapshot]);
 
 	return (
 		<section className="trader-journal-dashboard__panel trader-journal-dashboard__plan-overview">
@@ -73,6 +75,7 @@ export function PlanOverview({ language, plugin, snapshot, tradeSnapshot, symbol
 			<div className="trader-journal-dashboard__trade-plan-metrics">
 				<PlanMetric label={tr('dashboard.linkedLiveTrades')} value={tradePlanMetrics.linkedTradeCount} tone="accent" />
 				<PlanMetric label={tr('dashboard.unplannedLiveTrades')} value={tradePlanMetrics.unplannedTradeCount} />
+				<PlanMetric label={tr('dashboard.orphanedPlanLinks')} value={tradePlanMetrics.orphanedTradeCount} />
 				<PlanMetric label={tr('dashboard.tradesPerExecutedPlan')} value={formatDecimal(tradePlanMetrics.tradesPerExecutedPlan)} />
 			</div>
 
@@ -134,42 +137,24 @@ function OpenPlanCard({
 			new Notice(tr('calendar.openPlanNoteError'));
 		}
 	};
-	const handleCardKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-		if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) {
-			return;
-		}
-
-		event.preventDefault();
-		void openPlan();
-	};
-	const stopCardClick = (event: MouseEvent<HTMLDivElement>) => {
-		event.stopPropagation();
-	};
-
 	return (
-		<article
-			className={`trader-journal-dashboard-plan-card${plan.linkedTradeCount === 0 ? ' trader-journal-dashboard-plan-card--attention' : ''}`}
-			role="button"
-			tabIndex={0}
-			onClick={() => void openPlan()}
-			onKeyDown={handleCardKeyDown}
-		>
-			<div className="trader-journal-dashboard-plan-card__header">
-				<div>
+		<article className={`trader-journal-dashboard-plan-card${plan.linkedTradeCount === 0 ? ' trader-journal-dashboard-plan-card--attention' : ''}`}>
+			<button type="button" className="trader-journal-dashboard-plan-card__open" onClick={() => void openPlan()}>
+				<div className="trader-journal-dashboard-plan-card__header">
 					<div className="trader-journal-dashboard-plan-card__identity">
 						<strong>{plan.symbol}</strong>
 						<span>{formatBias(plan, language)}</span>
 					</div>
-					<h5>{plan.title}</h5>
+					<span className="trader-journal-dashboard-plan-card__status">{tr('option.open')}</span>
 				</div>
-				<span className="trader-journal-dashboard-plan-card__status">{tr('option.open')}</span>
-			</div>
+				<strong className="trader-journal-dashboard-plan-card__title" title={plan.title}>{plan.title}</strong>
 
-			<div className="trader-journal-dashboard-plan-card__details">
-				<span>{tr('dashboard.started', { date: formatDate(plan.startDate, locale) })}</span>
-				{plan.setup ? <span>{plan.setup}</span> : null}
-				{plan.timeframes.length ? <span>{plan.timeframes.join(', ')}</span> : null}
-			</div>
+				<div className="trader-journal-dashboard-plan-card__details">
+					<span>{tr('dashboard.started', { date: formatDate(plan.startDate, locale) })}</span>
+					{plan.setup ? <span>{plan.setup}</span> : null}
+					{plan.timeframes.length ? <span>{plan.timeframes.join(', ')}</span> : null}
+				</div>
+			</button>
 
 			<div className="trader-journal-dashboard-plan-card__footer">
 				<span className={plan.linkedTradeCount === 0 ? 'is-attention' : 'is-linked'}>
@@ -177,12 +162,11 @@ function OpenPlanCard({
 						? tr('dashboard.noLinkedTrades')
 						: tr('calendar.linkedTradeCount', { count: plan.linkedTradeCount })}
 				</span>
-				<div className="trader-journal-dashboard-plan-card__actions" onClick={stopCardClick}>
-					<DashboardIconButton
-						icon="pencil"
-						label={tr('dashboard.editPlan')}
-						primary
-						size="compact"
+				<div className="trader-journal-dashboard-plan-card__actions">
+						<DashboardIconButton
+							icon="pencil"
+							label={tr('dashboard.editPlan')}
+							size="compact"
 						onClick={() => new TradePlanModal(plugin.app, plugin, plan.plan, plan.filePath).open()}
 					/>
 				</div>

@@ -1,9 +1,7 @@
-import type { EventRef, TAbstractFile } from 'obsidian';
-import { Notice, TFile } from 'obsidian';
+import { Notice } from 'obsidian';
 import { useEffect, useMemo, useState } from 'react';
 import { getTranslator } from '../i18n';
 import type TraderJournalPlugin from '../main';
-import { getSetupRootFolder, listTradeSetups } from '../setups/storage';
 import type { TradeSetupDefinition } from '../setups/types';
 import type { TraderJournalLanguage } from '../settings';
 import { TradeSetupModal } from '../ui/TradeSetupModal';
@@ -17,6 +15,7 @@ interface SetupOverviewProps {
 export function SetupOverview({ language, plugin }: SetupOverviewProps) {
 	const [setups, setSetups] = useState<TradeSetupDefinition[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
+	const [hasLoadError, setHasLoadError] = useState(false);
 	const tr = getTranslator(language);
 	const activeCount = useMemo(
 		() => setups.filter((setup) => setup.status === 'active').length,
@@ -24,65 +23,19 @@ export function SetupOverview({ language, plugin }: SetupOverviewProps) {
 	);
 
 	useEffect(() => {
-		let disposed = false;
-		let reloadTimer: number | undefined;
-		const root = getSetupRootFolder(plugin);
-
-		const loadSetups = async () => {
-			try {
-				const nextSetups = await listTradeSetups(plugin);
-				if (!disposed) {
-					setSetups(nextSetups);
-				}
-			} catch (error) {
-				console.error('Trader Journal failed to load setups for dashboard', error);
-			} finally {
-				if (!disposed) {
-					setIsLoading(false);
-				}
-			}
-		};
-
-		const scheduleReload = () => {
-			if (reloadTimer !== undefined) {
-				window.clearTimeout(reloadTimer);
-			}
-			reloadTimer = window.setTimeout(() => {
-				reloadTimer = undefined;
-				void loadSetups();
-			}, 200);
-		};
-
-		const handleFile = (file: TAbstractFile) => {
-			if (file instanceof TFile && isPathInFolder(file.path, root)) {
-				scheduleReload();
-			}
-		};
-		const eventRefs: EventRef[] = [
-			plugin.app.vault.on('create', handleFile),
-			plugin.app.vault.on('modify', handleFile),
-			plugin.app.vault.on('delete', (file) => {
-				if (isPathInFolder(file.path, root)) {
-					scheduleReload();
-				}
-			}),
-			plugin.app.vault.on('rename', (file, oldPath) => {
-				if (isPathInFolder(file.path, root) || isPathInFolder(oldPath, root)) {
-					scheduleReload();
-				}
-			}),
-		];
-
-		void loadSetups();
-		return () => {
-			disposed = true;
-			if (reloadTimer !== undefined) {
-				window.clearTimeout(reloadTimer);
-			}
-			for (const eventRef of eventRefs) {
-				plugin.app.vault.offref(eventRef);
-			}
-		};
+		setIsLoading(true);
+		setHasLoadError(false);
+		return plugin.referenceDataService.subscribeSetups(
+			(nextSetups) => {
+				setSetups(nextSetups);
+				setHasLoadError(false);
+				setIsLoading(false);
+			},
+			() => {
+				setHasLoadError(true);
+				setIsLoading(false);
+			},
+		);
 	}, [plugin]);
 
 	return (
@@ -108,6 +61,8 @@ export function SetupOverview({ language, plugin }: SetupOverviewProps) {
 
 			{isLoading ? (
 				<p className="trader-journal-dashboard__empty">{tr('placeholder.loadingSetups')}</p>
+			) : hasLoadError ? (
+				<p className="trader-journal-dashboard__empty">{tr('dashboard.loadSetupsError')}</p>
 			) : setups.length ? (
 				<div className="trader-journal-dashboard__setup-list">
 					{setups.map((setup) => (
@@ -172,8 +127,4 @@ function SetupRow({
 			/>
 		</div>
 	);
-}
-
-function isPathInFolder(path: string, folder: string): boolean {
-	return path === folder || path.startsWith(`${folder}/`);
 }

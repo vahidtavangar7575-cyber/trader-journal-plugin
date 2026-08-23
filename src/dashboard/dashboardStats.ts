@@ -1,12 +1,14 @@
 import type { JournalPlanSnapshot, JournalCalendarPlan } from '../plans/planIndex';
 import type { JournalCalendarSnapshot, JournalCalendarTrade } from '../trades/journalIndex';
-import { stringifyValue } from '../trades/format';
+import { formatResult, formatSide, stringifyValue } from '../trades/format';
+import { normalizeSymbol, type TraderJournalLanguage } from '../settings';
 import type { TradeJournalType } from '../trades/types';
 import type { TradeReviewMistakeTag, TradeReviewPlanAdherence } from '../trades/types';
 import {
 	TRADE_REVIEW_PLAN_ADHERENCE_OPTIONS,
 	normalizeTradeReview,
 } from '../trades/review';
+import { formatLocalDateKey, isValidDateKey } from './dashboardDates';
 
 export type DashboardPeriod = 'today' | 'yesterday' | '7d' | '30d' | 'month' | 'custom' | 'all';
 
@@ -85,6 +87,7 @@ export interface ReviewMetrics {
 export interface TradePlanLinkMetrics {
 	linkedTradeCount: number;
 	unplannedTradeCount: number;
+	orphanedTradeCount: number;
 	executedPlanCount: number;
 	tradesPerExecutedPlan: number;
 }
@@ -94,7 +97,11 @@ export function getDashboardTrades(
 	filters: DashboardFilters,
 	today = new Date(),
 ): JournalCalendarTrade[] {
-	const { startDate, endDate } = getPeriodDateRange(filters, today);
+	const dateRange = getPeriodDateRange(filters, today);
+	if (!dateRange) {
+		return [];
+	}
+	const { startDate, endDate } = dateRange;
 	return collectTrades(snapshot)
 		.filter((trade) => trade.journalType === filters.journalType)
 		.filter((trade) => !filters.symbol || trade.symbol === filters.symbol)
@@ -126,10 +133,15 @@ export function getDashboardMetrics(trades: JournalCalendarTrade[]): DashboardMe
 export function filterRecentTrades(
 	trades: JournalCalendarTrade[],
 	filters: RecentTradeFilters,
+	language: TraderJournalLanguage = 'en',
+	planSnapshot?: JournalPlanSnapshot,
 ): JournalCalendarTrade[] {
 	const query = filters.query.trim().toLocaleLowerCase();
+	const plansById = planSnapshot
+		? new Map(planSnapshot.plans.map((plan) => [plan.id, plan]))
+		: null;
 	return trades.filter((trade) => {
-		if (query && !getTradeSearchText(trade).includes(query)) {
+		if (query && !getTradeSearchText(trade, language).includes(query)) {
 			return false;
 		}
 		if (filters.outcome === 'open' && trade.status !== 'open') {
@@ -158,7 +170,9 @@ export function filterRecentTrades(
 		) {
 			return false;
 		}
-		const hasPlan = Boolean(stringifyValue(trade.trade.plan_id));
+		const hasPlan = plansById
+			? getValidLinkedPlanId(trade, plansById) !== null
+			: Boolean(stringifyValue(trade.trade.plan_id));
 		if (trade.journalType === 'live' && filters.plan === 'linked' && !hasPlan) {
 			return false;
 		}
@@ -183,10 +197,16 @@ export function getDashboardSymbols(
 		.sort((first, second) => first.localeCompare(second));
 }
 
-export function getOpenPlans(snapshot: JournalPlanSnapshot, symbol = ''): JournalCalendarPlan[] {
-	return snapshot.plans
+export function getOpenPlans(
+	planSnapshot: JournalPlanSnapshot,
+	tradeSnapshot: JournalCalendarSnapshot,
+	symbol = '',
+): JournalCalendarPlan[] {
+	const tradeCounts = getPlanTradeCounts(planSnapshot, tradeSnapshot);
+	return planSnapshot.plans
 		.filter((plan) => plan.status === 'open')
 		.filter((plan) => !symbol || plan.symbol === symbol)
+		.map((plan) => ({ ...plan, linkedTradeCount: tradeCounts.get(plan.id) ?? 0 }))
 		.sort((first, second) => {
 			if ((first.linkedTradeCount === 0) !== (second.linkedTradeCount === 0)) {
 				return first.linkedTradeCount === 0 ? -1 : 1;
@@ -195,10 +215,15 @@ export function getOpenPlans(snapshot: JournalPlanSnapshot, symbol = ''): Journa
 		});
 }
 
-export function getPlanMetrics(snapshot: JournalPlanSnapshot, symbol = ''): PlanMetrics {
-	const plans = snapshot.plans.filter((plan) => !symbol || plan.symbol === symbol);
+export function getPlanMetrics(
+	planSnapshot: JournalPlanSnapshot,
+	tradeSnapshot: JournalCalendarSnapshot,
+	symbol = '',
+): PlanMetrics {
+	const tradeCounts = getPlanTradeCounts(planSnapshot, tradeSnapshot);
+	const plans = planSnapshot.plans.filter((plan) => !symbol || plan.symbol === symbol);
 	const openPlans = plans.filter((plan) => plan.status === 'open');
-	const withTradesCount = plans.filter((plan) => plan.linkedTradeCount > 0).length;
+	const withTradesCount = plans.filter((plan) => (tradeCounts.get(plan.id) ?? 0) > 0).length;
 
 	return {
 		totalCount: plans.length,
@@ -207,7 +232,7 @@ export function getPlanMetrics(snapshot: JournalPlanSnapshot, symbol = ''): Plan
 		cancelledCount: plans.filter((plan) => plan.status === 'cancelled').length,
 		withTradesCount,
 		executionRate: plans.length ? (withTradesCount / plans.length) * 100 : 0,
-		openWithoutTradesCount: openPlans.filter((plan) => plan.linkedTradeCount === 0).length,
+		openWithoutTradesCount: openPlans.filter((plan) => (tradeCounts.get(plan.id) ?? 0) === 0).length,
 	};
 }
 
@@ -278,37 +303,73 @@ export function getReviewMetrics(trades: JournalCalendarTrade[]): ReviewMetrics 
 }
 
 export function getTradePlanLinkMetrics(
-	snapshot: JournalCalendarSnapshot,
+	tradeSnapshot: JournalCalendarSnapshot,
+	planSnapshot: JournalPlanSnapshot,
 	symbol = '',
 ): TradePlanLinkMetrics {
-	const liveTrades = collectTrades(snapshot).filter(
+	const plansById = new Map(planSnapshot.plans.map((plan) => [plan.id, plan]));
+	const liveTrades = collectTrades(tradeSnapshot).filter(
 		(trade) => trade.journalType === 'live' && (!symbol || trade.symbol === symbol),
 	);
-	const linkedTrades = liveTrades.filter((trade) => Boolean(stringifyValue(trade.trade.plan_id)));
+	const linkedTrades = liveTrades.filter((trade) => getValidLinkedPlanId(trade, plansById) !== null);
+	const orphanedTrades = liveTrades.filter((trade) => {
+		const planId = stringifyValue(trade.trade.plan_id);
+		return Boolean(planId) && getValidLinkedPlanId(trade, plansById) === null;
+	});
 	const executedPlanIds = new Set(
-		linkedTrades.map((trade) => stringifyValue(trade.trade.plan_id)).filter(Boolean),
+		linkedTrades.map((trade) => getValidLinkedPlanId(trade, plansById)).filter(Boolean),
 	);
 
 	return {
 		linkedTradeCount: linkedTrades.length,
-		unplannedTradeCount: liveTrades.length - linkedTrades.length,
+		unplannedTradeCount: liveTrades.length - linkedTrades.length - orphanedTrades.length,
+		orphanedTradeCount: orphanedTrades.length,
 		executedPlanCount: executedPlanIds.size,
 		tradesPerExecutedPlan: executedPlanIds.size ? linkedTrades.length / executedPlanIds.size : 0,
 	};
+}
+
+function getPlanTradeCounts(
+	planSnapshot: JournalPlanSnapshot,
+	tradeSnapshot: JournalCalendarSnapshot,
+): Map<string, number> {
+	const plansById = new Map(planSnapshot.plans.map((plan) => [plan.id, plan]));
+	const counts = new Map<string, number>();
+	for (const trade of collectTrades(tradeSnapshot)) {
+		if (trade.journalType !== 'live') {
+			continue;
+		}
+		const planId = getValidLinkedPlanId(trade, plansById);
+		if (planId) {
+			counts.set(planId, (counts.get(planId) ?? 0) + 1);
+		}
+	}
+	return counts;
+}
+
+function getValidLinkedPlanId(
+	trade: JournalCalendarTrade,
+	plansById: ReadonlyMap<string, JournalCalendarPlan>,
+): string | null {
+	const planId = stringifyValue(trade.trade.plan_id);
+	const plan = plansById.get(planId);
+	return plan && normalizeSymbol(plan.symbol) === normalizeSymbol(trade.symbol) ? planId : null;
 }
 
 function collectTrades(snapshot: JournalCalendarSnapshot): JournalCalendarTrade[] {
 	return Object.values(snapshot.daysByDate).flatMap((day) => day.trades);
 }
 
-function getTradeSearchText(trade: JournalCalendarTrade): string {
+function getTradeSearchText(trade: JournalCalendarTrade, language: TraderJournalLanguage): string {
 	return [
 		trade.symbol,
 		trade.setup,
 		trade.timeframe,
 		trade.notes,
-		trade.side,
-		trade.result,
+		stringifyValue(trade.trade.side),
+		stringifyValue(trade.trade.result),
+		formatSide(trade.trade.side, language),
+		formatResult(trade.trade.result, language),
 		stringifyValue(trade.trade.plan_id),
 	]
 		.filter(Boolean)
@@ -346,25 +407,25 @@ function parseRr(value: unknown): number {
 function getPeriodDateRange(
 	filters: DashboardFilters,
 	today: Date,
-): { startDate: string | null; endDate: string | null } {
+): { startDate: string | null; endDate: string | null } | null {
 	if (filters.period === 'all') {
 		return { startDate: null, endDate: null };
 	}
 	if (filters.period === 'custom') {
-		return {
-			startDate: normalizeDateFilter(filters.dateFrom),
-			endDate: normalizeDateFilter(filters.dateTo),
-		};
+		const startDate = normalizeDateFilter(filters.dateFrom);
+		const endDate = normalizeDateFilter(filters.dateTo);
+		return startDate && endDate && startDate <= endDate ? { startDate, endDate } : null;
 	}
 
-	const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+	const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+	const start = new Date(end);
 	if (filters.period === 'today') {
-		const date = formatDateKey(start);
+		const date = formatLocalDateKey(start);
 		return { startDate: date, endDate: date };
 	}
 	if (filters.period === 'yesterday') {
 		start.setDate(start.getDate() - 1);
-		const date = formatDateKey(start);
+		const date = formatLocalDateKey(start);
 		return { startDate: date, endDate: date };
 	}
 	if (filters.period === 'month') {
@@ -372,17 +433,10 @@ function getPeriodDateRange(
 	} else {
 		start.setDate(start.getDate() - (filters.period === '7d' ? 6 : 29));
 	}
-	return { startDate: formatDateKey(start), endDate: null };
+	return { startDate: formatLocalDateKey(start), endDate: formatLocalDateKey(end) };
 }
 
 function normalizeDateFilter(value: string | undefined): string | null {
 	const normalized = value?.trim() ?? '';
-	return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : null;
-}
-
-function formatDateKey(date: Date): string {
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, '0');
-	const day = String(date.getDate()).padStart(2, '0');
-	return `${year}-${month}-${day}`;
+	return isValidDateKey(normalized) ? normalized : null;
 }

@@ -1,7 +1,6 @@
 import type { Events } from 'obsidian';
 import { Notice } from 'obsidian';
 import { useEffect, useMemo, useState } from 'react';
-import type { KeyboardEvent, MouseEvent } from 'react';
 import type TraderJournalPlugin from '../main';
 import { getLocale, getTranslator } from '../i18n';
 import { LANGUAGE_CHANGE_EVENT, type TraderJournalLanguage } from '../settings';
@@ -30,6 +29,9 @@ import { SetupOverview } from './SetupOverview';
 import { ReviewInsights } from './ReviewInsights';
 import { RecentTradeFilters } from './RecentTradeFilters';
 import { openJournalTrade } from '../trades/openTrade';
+import { formatResult, formatSide } from '../trades/format';
+import { formatLocalDateKey, isValidDateKey } from './dashboardDates';
+import { useCurrentDate } from './useCurrentDate';
 
 interface DashboardProps {
 	plugin: TraderJournalPlugin;
@@ -41,14 +43,22 @@ export function Dashboard({ plugin }: DashboardProps) {
 	const [language, setLanguage] = useState<TraderJournalLanguage>(plugin.settings.language);
 	const [journalType, setJournalType] = useState<TradeJournalType>('live');
 	const [period, setPeriod] = useState<DashboardPeriod>('30d');
-	const [customDateFrom, setCustomDateFrom] = useState(() => formatDateInput(new Date()));
-	const [customDateTo, setCustomDateTo] = useState(() => formatDateInput(new Date()));
+	const [customDateFrom, setCustomDateFrom] = useState(() => formatLocalDateKey(new Date()));
+	const [customDateTo, setCustomDateTo] = useState(() => formatLocalDateKey(new Date()));
 	const [symbol, setSymbol] = useState('');
 	const [recentTradeFilters, setRecentTradeFilters] = useState<RecentTradeFilterState>(() => ({
 		...DEFAULT_RECENT_TRADE_FILTERS,
 	}));
 	const tr = getTranslator(language);
 	const locale = getLocale(language);
+	const currentDate = useCurrentDate();
+	const customDateError = period !== 'custom'
+		? ''
+		: !isValidDateKey(customDateFrom) || !isValidDateKey(customDateTo)
+			? tr('dashboard.dateRangeRequired')
+			: customDateFrom > customDateTo
+				? tr('dashboard.dateRangeInvalid')
+				: '';
 
 	useEffect(() => plugin.journalDataService.subscribe(setJournalData), [plugin]);
 
@@ -72,8 +82,8 @@ export function Dashboard({ plugin }: DashboardProps) {
 		...(period === 'custom' ? { dateFrom: customDateFrom, dateTo: customDateTo } : {}),
 	}), [customDateFrom, customDateTo, journalType, period, symbol]);
 	const trades = useMemo(
-		() => getDashboardTrades(journalData.trades, dashboardFilters),
-		[dashboardFilters, journalData.trades],
+		() => getDashboardTrades(journalData.trades, dashboardFilters, currentDate),
+		[currentDate, dashboardFilters, journalData.trades],
 	);
 	const metrics = useMemo(() => getDashboardMetrics(trades), [trades]);
 	const recentSetupOptions = useMemo(
@@ -82,12 +92,12 @@ export function Dashboard({ plugin }: DashboardProps) {
 		[trades],
 	);
 	const recentTrades = useMemo(
-		() => filterRecentTrades(trades, recentTradeFilters),
-		[recentTradeFilters, trades],
+		() => filterRecentTrades(trades, recentTradeFilters, language, journalData.plans),
+		[journalData.plans, language, recentTradeFilters, trades],
 	);
 	const planMetrics = useMemo(
-		() => getPlanMetrics(journalData.plans, symbol),
-		[journalData.plans, symbol],
+		() => getPlanMetrics(journalData.plans, journalData.trades, symbol),
+		[journalData.plans, journalData.trades, symbol],
 	);
 	const openLiveTradeCount = useMemo(
 		() => getOpenLiveTradeCount(journalData.trades, symbol),
@@ -191,6 +201,8 @@ export function Dashboard({ plugin }: DashboardProps) {
 								<input
 									type="date"
 									value={customDateFrom}
+									max={customDateTo || undefined}
+									aria-invalid={Boolean(customDateError)}
 									onChange={(event) => setCustomDateFrom(event.target.value)}
 								/>
 							</label>
@@ -199,6 +211,8 @@ export function Dashboard({ plugin }: DashboardProps) {
 								<input
 									type="date"
 									value={customDateTo}
+									min={customDateFrom || undefined}
+									aria-invalid={Boolean(customDateError)}
 									onChange={(event) => setCustomDateTo(event.target.value)}
 								/>
 							</label>
@@ -211,8 +225,11 @@ export function Dashboard({ plugin }: DashboardProps) {
 							{symbols.map((item) => <option value={item} key={item}>{item}</option>)}
 						</select>
 					</label>
-				</div>
-				<div className="trader-journal-dashboard__metrics">
+					</div>
+					{customDateError ? (
+						<p className="trader-journal-dashboard__filter-error" role="alert">{customDateError}</p>
+					) : null}
+					<div className="trader-journal-dashboard__metrics">
 					<MetricCard label={tr('dashboard.totalTrades')} value={String(metrics.tradeCount)} />
 					<MetricCard label={tr('dashboard.completedTrades')} value={String(metrics.completedTradeCount)} />
 					<MetricCard label={tr('dashboard.winRate')} value={formatPercent(metrics.winRate)} />
@@ -230,9 +247,10 @@ export function Dashboard({ plugin }: DashboardProps) {
 				/>
 			) : null}
 
-			<PlanOverview
-				language={language}
-				plugin={plugin}
+				<PlanOverview
+					language={language}
+					metrics={planMetrics}
+					plugin={plugin}
 				snapshot={journalData.plans}
 				tradeSnapshot={journalData.trades}
 				symbol={symbol}
@@ -263,7 +281,7 @@ export function Dashboard({ plugin }: DashboardProps) {
 					{recentTrades.length ? (
 						<div className="trader-journal-dashboard__list">
 							{recentTrades.slice(0, 10).map((trade) => (
-								<RecentTradeRow trade={trade} locale={locale} plugin={plugin} key={`${trade.filePath}:${trade.id}`} />
+								<RecentTradeRow trade={trade} language={language} locale={locale} plugin={plugin} key={`${trade.filePath}:${trade.id}`} />
 							))}
 						</div>
 					) : (
@@ -287,49 +305,45 @@ function AttentionCard({ label, value }: { label: string; value: number }) {
 	return <article className={`trader-journal-dashboard-attention${value > 0 ? ' is-active' : ''}`}><strong>{value}</strong><span>{label}</span></article>;
 }
 
-function RecentTradeRow({ trade, locale, plugin }: { trade: JournalCalendarTrade; locale: string | undefined; plugin: TraderJournalPlugin }) {
-	const tr = getTranslator(plugin.settings.language);
+function RecentTradeRow({
+	trade,
+	language,
+	locale,
+	plugin,
+}: {
+	trade: JournalCalendarTrade;
+	language: TraderJournalLanguage;
+	locale: string | undefined;
+	plugin: TraderJournalPlugin;
+}) {
+	const tr = getTranslator(language);
 	const openTrade = async () => {
 		try {
 			await openJournalTrade(plugin, trade);
 		} catch (error) {
 			console.error('Trader Journal failed to open trade note from dashboard', error);
-			new Notice(getTranslator(plugin.settings.language)('calendar.openTradeNoteError'));
+			new Notice(tr('calendar.openTradeNoteError'));
 		}
 	};
-	const handleRowKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-		if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) {
-			return;
-		}
-
-		event.preventDefault();
-		void openTrade();
-	};
-	const stopRowClick = (event: MouseEvent<HTMLSpanElement>) => {
-		event.stopPropagation();
-	};
-	const tradeDescription = [trade.side, trade.setup].filter(Boolean).join(' · ') || '—';
+	const tradeDescription = [formatSide(trade.trade.side, language), trade.setup].filter(Boolean).join(' · ') || '—';
+	const result = formatResult(trade.trade.result, language);
 
 	return (
-		<div
-			className="trader-journal-dashboard-row"
-			role="button"
-			tabIndex={0}
-			onClick={() => void openTrade()}
-			onKeyDown={handleRowKeyDown}
-		>
-			<span className="trader-journal-dashboard-row__primary"><strong>{trade.symbol}</strong><span>{tradeDescription}</span></span>
-			<span className="trader-journal-dashboard-row__secondary">
-				<span>{formatJournalDate(trade.journalDate, locale)}</span>
-				<span className={`trader-journal-dashboard-row__result trader-journal-dashboard-row__result--${trade.resultKey ?? 'open'}`}>
-					{trade.status === 'open' ? tr('option.open') : trade.result || '—'}
+		<div className="trader-journal-dashboard-row">
+			<button type="button" className="trader-journal-dashboard-row__open" onClick={() => void openTrade()}>
+				<span className="trader-journal-dashboard-row__primary"><strong>{trade.symbol}</strong><span>{tradeDescription}</span></span>
+				<span className="trader-journal-dashboard-row__secondary">
+					<span>{formatJournalDate(trade.journalDate, locale)}</span>
+					<span className={`trader-journal-dashboard-row__result trader-journal-dashboard-row__result--${trade.resultKey ?? 'open'}`}>
+						{trade.status === 'open' ? tr('option.open') : result || '—'}
+					</span>
+					{trade.journalType === 'live' && trade.status === 'closed' && !trade.reviewed ? (
+						<span className="trader-journal-dashboard-row__review-status">{tr('dashboard.unreviewed')}</span>
+					) : null}
+					<span className="trader-journal-dashboard-row__rr">{trade.rr || '—'}</span>
 				</span>
-				{trade.journalType === 'live' && trade.status === 'closed' && !trade.reviewed ? (
-					<span className="trader-journal-dashboard-row__review-status">{tr('dashboard.unreviewed')}</span>
-				) : null}
-				<span className="trader-journal-dashboard-row__rr">{trade.rr || '—'}</span>
-			</span>
-			<span className="trader-journal-dashboard-row__actions" onClick={stopRowClick}>
+			</button>
+			<span className="trader-journal-dashboard-row__actions">
 				<DashboardIconButton
 					icon="pencil"
 					label={tr('dashboard.editTrade')}
@@ -357,10 +371,3 @@ function formatJournalDate(value: string, locale: string | undefined): string {
 function formatPercent(value: number): string { return `${value.toFixed(1)}%`; }
 function formatRr(value: number): string { return `${value > 0 ? '+' : ''}${value.toFixed(2)}R`; }
 function getNumberTone(value: number): 'positive' | 'negative' | 'neutral' { return value > 0 ? 'positive' : value < 0 ? 'negative' : 'neutral'; }
-
-function formatDateInput(date: Date): string {
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, '0');
-	const day = String(date.getDate()).padStart(2, '0');
-	return `${year}-${month}-${day}`;
-}

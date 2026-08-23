@@ -1,7 +1,6 @@
 import type { Events } from 'obsidian';
 import { Notice } from 'obsidian';
 import { useEffect, useMemo, useState } from 'react';
-import type { KeyboardEvent, MouseEvent } from 'react';
 import type TraderJournalPlugin from '../../main';
 import { getLocale, getTranslator, type I18nKey } from '../../i18n';
 import { LANGUAGE_CHANGE_EVENT, type TraderJournalLanguage } from '../../settings';
@@ -9,6 +8,7 @@ import type { JournalCalendarTrade } from '../../trades/journalIndex';
 import { openJournalTrade } from '../../trades/openTrade';
 import { TradeReviewModal } from '../../ui/TradeReviewModal';
 import { TraderJournalModal } from '../../ui/TraderJournalModal';
+import { formatResult, formatSide } from '../../trades/format';
 import { DashboardIconButton } from '../DashboardIconButton';
 import {
 	countTradeDrilldownFiles,
@@ -16,6 +16,7 @@ import {
 	getTradeDrilldownTrades,
 } from './tradeDrilldownQuery';
 import type { TradeDrilldownQuery, TradeDrilldownSort } from './types';
+import { useCurrentDate } from '../useCurrentDate';
 
 interface TradeDrilldownProps {
 	plugin: TraderJournalPlugin;
@@ -29,6 +30,7 @@ export function TradeDrilldown({ plugin, query }: TradeDrilldownProps) {
 	const [sort, setSort] = useState<TradeDrilldownSort>('newest');
 	const tr = getTranslator(language);
 	const locale = getLocale(language);
+	const currentDate = useCurrentDate();
 
 	useEffect(() => plugin.journalDataService.subscribe(setJournalData), [plugin]);
 	useEffect(() => {
@@ -42,12 +44,12 @@ export function TradeDrilldown({ plugin, query }: TradeDrilldownProps) {
 	useEffect(() => setSearch(''), [query]);
 
 	const matchingTrades = useMemo(
-		() => getTradeDrilldownTrades(journalData.trades, query),
-		[journalData.trades, query],
+		() => getTradeDrilldownTrades(journalData.trades, query, currentDate),
+		[currentDate, journalData.trades, query],
 	);
 	const visibleTrades = useMemo(
-		() => filterTradeDrilldownTrades(matchingTrades, search, sort),
-		[matchingTrades, search, sort],
+		() => filterTradeDrilldownTrades(matchingTrades, search, sort, language),
+		[language, matchingTrades, search, sort],
 	);
 	const fileCount = useMemo(() => countTradeDrilldownFiles(matchingTrades), [matchingTrades]);
 	const title = tr('drilldown.title', { category: getCriterionLabel(query, language) });
@@ -131,6 +133,8 @@ function TradeDrilldownRow({
 	trade: JournalCalendarTrade;
 }) {
 	const tr = getTranslator(language);
+	const side = formatSide(trade.trade.side, language);
+	const result = formatResult(trade.trade.result, language);
 	const openTrade = async () => {
 		try {
 			await openJournalTrade(plugin, trade);
@@ -139,40 +143,28 @@ function TradeDrilldownRow({
 			new Notice(tr('calendar.openTradeNoteError'));
 		}
 	};
-	const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-		if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
-			event.preventDefault();
-			void openTrade();
-		}
-	};
-	const stopRowClick = (event: MouseEvent<HTMLDivElement>) => event.stopPropagation();
-
 	return (
-		<div
-			className="trader-journal-drilldown-row"
-			role="button"
-			tabIndex={0}
-			onClick={() => void openTrade()}
-			onKeyDown={handleKeyDown}
-		>
-			<div className="trader-journal-drilldown-row__main">
-				<div className="trader-journal-drilldown-row__title">
-					<strong>{trade.symbol}</strong>
-					<span>{formatDate(trade.journalDate, locale)}</span>
+		<div className="trader-journal-drilldown-row">
+			<button type="button" className="trader-journal-drilldown-row__open" onClick={() => void openTrade()}>
+				<div className="trader-journal-drilldown-row__main">
+					<div className="trader-journal-drilldown-row__title">
+						<strong>{trade.symbol}</strong>
+						<span>{formatDate(trade.journalDate, locale)}</span>
+					</div>
+					<div className="trader-journal-drilldown-row__details">
+						<span>{[side, trade.setup, trade.timeframe].filter(Boolean).join(' · ') || '—'}</span>
+						<span title={trade.filePath}>{trade.file.basename}</span>
+					</div>
 				</div>
-				<div className="trader-journal-drilldown-row__details">
-					<span>{[trade.side, trade.setup, trade.timeframe].filter(Boolean).join(' · ') || '—'}</span>
-					<span title={trade.filePath}>{trade.file.basename}</span>
+				<div className="trader-journal-drilldown-row__metrics">
+					<span className={`is-${trade.resultKey ?? 'neutral'}`}>{result || '—'}</span>
+					<strong>{trade.rr || '—'}</strong>
+					<span className={trade.reviewed ? 'is-reviewed' : 'is-unreviewed'}>
+						{tr(trade.reviewed ? 'dashboard.reviewedTrades' : 'dashboard.unreviewed')}
+					</span>
 				</div>
-			</div>
-			<div className="trader-journal-drilldown-row__metrics">
-				<span className={`is-${trade.resultKey ?? 'neutral'}`}>{trade.result || '—'}</span>
-				<strong>{trade.rr || '—'}</strong>
-				<span className={trade.reviewed ? 'is-reviewed' : 'is-unreviewed'}>
-					{tr(trade.reviewed ? 'dashboard.reviewedTrades' : 'dashboard.unreviewed')}
-				</span>
-			</div>
-			<div className="trader-journal-drilldown-row__actions" onClick={stopRowClick}>
+			</button>
+			<div className="trader-journal-drilldown-row__actions">
 				<DashboardIconButton
 					icon="pencil"
 					label={tr('dashboard.editTrade')}
