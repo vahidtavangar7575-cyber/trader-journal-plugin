@@ -25,6 +25,15 @@ import { parseTradeTags, validateTradeForm } from '../form';
 import type { TradeFormState } from '../form';
 import { syncTradePlanLink } from '../planLink';
 
+const KHAN_TRADE_FIELDS = [
+	'khan_setup',
+	'khan_risk_pct',
+	'khan_rule_version',
+	'khan_result_page',
+	'khan_source_pages',
+	'khan_decision_path',
+] as const;
+
 interface UseTradeSaveArgs {
 	beginAttachmentCommit: () => void;
 	closeModal: () => void;
@@ -199,6 +208,7 @@ function createTradeEntry(args: CreateTradeEntryArgs): TradeEntry {
 		notes: form.notes.trim(),
 		opened_at: args.openedAt,
 	};
+	copyKhanTradeMetadata(args.initialTrade, trade);
 
 	if (args.isLiveJournal && form.planId) {
 		trade.plan_id = form.planId;
@@ -225,4 +235,16 @@ function createTradeEntry(args: CreateTradeEntryArgs): TradeEntry {
 		trade.review = buildTradeReview(form.review, getCurrentLocalIsoString());
 	}
 	return trade;
+}
+
+function copyKhanTradeMetadata(source: TradeEntry | undefined, target: TradeEntry): void {
+	if (!source) {
+		return;
+	}
+	for (const field of KHAN_TRADE_FIELDS) {
+		const value = source[field];
+		if (value !== undefined) {
+			target[field] = value;
+		}
+	}
 }
