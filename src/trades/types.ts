@@ -64,10 +64,10 @@ export interface TradeEntry {
 	risk_pct?: number | string;
 	risk_amount?: number | string;
 	position_size?: number | string;
-	position_unit?: TradePositionUnit | string;
-	session?: TradeSession | string;
+	position_unit?: string;
+	session?: string;
 	market_arrival_context?: string;
-	pre_trade_emotion?: PreTradeEmotion | string;
+	pre_trade_emotion?: string;
 	urge_to_chase?: number | string;
 	images?: Array<TradeImage | string> | string;
 	notes?: string;
