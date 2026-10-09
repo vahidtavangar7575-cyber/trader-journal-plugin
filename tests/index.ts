@@ -13,3 +13,4 @@ import './tradeBlocks.test';
 import './temporaryAttachmentRegistry.test';
 import './linkedTrades.test';
 import './traderJournalDateTime.test';
+import './khanWizard.test';

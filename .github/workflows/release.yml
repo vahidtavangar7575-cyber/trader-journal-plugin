@@ -2,8 +2,12 @@ name: Release Obsidian plugin
 
 on:
     push:
+        branches:
+            - master
         tags:
             - '*'
+        paths:
+            - manifest.json
 
 jobs:
     build:
@@ -21,23 +25,26 @@ jobs:
                   node-version: 24
                   cache: 'npm'
 
-            - name: Build plugin
+            - name: Build and test plugin
               run: |
                   npm ci
                   npm run validate
                   npm run build
                   npm run lint
+                  npm test
+                  python scripts/check-persian-coverage.py
 
             - name: Verify release version
+              id: release
+              shell: bash
               run: |
-                  tag="${GITHUB_REF_NAME}"
                   manifest_version="$(node -e "const fs = require('fs'); console.log(JSON.parse(fs.readFileSync('manifest.json', 'utf8')).version);")"
                   package_version="$(node -e "const fs = require('fs'); console.log(JSON.parse(fs.readFileSync('package.json', 'utf8')).version);")"
                   versions_min_app="$(node -e "const fs = require('fs'); const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8')); const versions = JSON.parse(fs.readFileSync('versions.json', 'utf8')); console.log(versions[manifest.version] ?? '');")"
                   manifest_min_app="$(node -e "const fs = require('fs'); console.log(JSON.parse(fs.readFileSync('manifest.json', 'utf8')).minAppVersion);")"
 
-                  if [ "$tag" != "$manifest_version" ]; then
-                      echo "Release tag ($tag) must match manifest.json version ($manifest_version)."
+                  if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "$manifest_version" ]; then
+                      echo "Release tag ($GITHUB_REF_NAME) must match manifest.json version ($manifest_version)."
                       exit 1
                   fi
 
@@ -50,6 +57,8 @@ jobs:
                       echo "versions.json must map $manifest_version to minAppVersion $manifest_min_app."
                       exit 1
                   fi
+
+                  echo "version=$manifest_version" >> "$GITHUB_OUTPUT"
 
             - name: Check for optional styles
               id: styles
@@ -64,12 +73,33 @@ jobs:
                       manifest.json
                       ${{ steps.styles.outputs.exists == 'true' && 'styles.css' || '' }}
 
-            - name: Create release
+            - name: Create or update release
               env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  RELEASE_VERSION: ${{ steps.release.outputs.version }}
+              shell: bash
               run: |
-                  tag="${GITHUB_REF#refs/tags/}"
+                  assets=(main.js manifest.json)
+                  if [ "${{ steps.styles.outputs.exists }}" = "true" ]; then
+                      assets+=(styles.css)
+                  fi
 
-                  gh release create "$tag" \
-                    --title="$tag" \
-                    main.js manifest.json ${{ steps.styles.outputs.exists == 'true' && 'styles.css' || '' }}
+                  if gh release view "$RELEASE_VERSION" >/dev/null 2>&1; then
+                      gh release upload "$RELEASE_VERSION" "${assets[@]}" --clobber
+                      exit 0
+                  fi
+
+                  notes_file="docs/RELEASE-${RELEASE_VERSION}-FA.md"
+                  if [ -f "$notes_file" ]; then
+                      gh release create "$RELEASE_VERSION" \
+                        --target "$GITHUB_SHA" \
+                        --title "$RELEASE_VERSION" \
+                        --notes-file "$notes_file" \
+                        "${assets[@]}"
+                  else
+                      gh release create "$RELEASE_VERSION" \
+                        --target "$GITHUB_SHA" \
+                        --title "$RELEASE_VERSION" \
+                        --generate-notes \
+                        "${assets[@]}"
+                  fi

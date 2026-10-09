@@ -7,6 +7,7 @@ import {
 	registerTraderJournalCalendarView,
 	TRADER_JOURNAL_CALENDAR_ICON,
 } from './ui/TradeCalendarView';
+import { KhanDecisionWizardModal } from './ui/KhanDecisionWizardModal';
 import { registerAutoStatsRebuild } from './trades/autoRebuild';
 import { registerTradeBlockProcessor } from './trades/tradeBlockProcessor';
 import { registerPlanBlockProcessor } from './plans/planBlockProcessor';
@@ -46,6 +47,9 @@ export default class TraderJournalPlugin extends Plugin {
 
 		this.addRibbonIcon(TRADER_JOURNAL_CALENDAR_ICON, tr('command.openTradeCalendar'), () => {
 			void openTraderJournalCalendar(this);
+		});
+		this.addRibbonIcon('list-checks', 'راهنمای تصمیم ستاپ‌های خان', () => {
+			new KhanDecisionWizardModal(this.app, this).open();
 		});
 
 		registerTraderJournalCalendarView(this);
