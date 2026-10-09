@@ -21,13 +21,14 @@ import {
 	toLocalIsoString,
 } from '../dateTime';
 import { createTradeImage } from '../images';
-import { parseTradeTags, validateTradeForm } from '../form';
+import { calculateRiskAmount, parseTradeTags, validateTradeForm } from '../form';
 import type { TradeFormState } from '../form';
 import { syncTradePlanLink } from '../planLink';
 
 const KHAN_TRADE_FIELDS = [
 	'khan_setup',
 	'khan_risk_pct',
+	'khan_approved_risk_pct',
 	'khan_rule_version',
 	'khan_result_page',
 	'khan_source_pages',
@@ -136,9 +137,7 @@ export function useTradeSave({
 				commitAttachments();
 				console.error('Trader Journal saved the trade but failed during post-save processing', saveError.originalError);
 				new Notice(tr('notice.savedTradePostProcessFailed', { path: saveError.file.path }));
-				if (isMounted()) {
-					closeModal();
-				}
+				if (isMounted()) closeModal();
 				return;
 			}
 
@@ -149,17 +148,13 @@ export function useTradeSave({
 				} catch (planLinkError) {
 					console.error('Trader Journal saved the trade but failed to synchronize its plan link', planLinkError);
 					new Notice(tr('notice.savedTradePlanSyncFailed', { path: file.path }));
-					if (isMounted()) {
-						closeModal();
-					}
+					if (isMounted()) closeModal();
 					return;
 				}
 			}
 
 			new Notice(tr(isEditing ? 'notice.updatedTrade' : 'notice.savedTrade', { path: file.path }));
-			if (isMounted()) {
-				closeModal();
-			}
+			if (isMounted()) closeModal();
 		} catch (saveError) {
 			await failAttachmentCommit();
 			if (isMounted()) {
@@ -193,6 +188,7 @@ function createTradeEntry(args: CreateTradeEntryArgs): TradeEntry {
 	const images = pendingImage && !form.images.some((image) => image.value === pendingImage.value)
 		? [...form.images, pendingImage]
 		: form.images;
+	const computedRiskAmount = calculateRiskAmount(form.accountEquity, form.riskPct);
 	const trade: TradeEntry = {
 		schemaVersion: 1,
 		id: args.tradeId,
@@ -207,6 +203,15 @@ function createTradeEntry(args: CreateTradeEntryArgs): TradeEntry {
 		images,
 		notes: form.notes.trim(),
 		opened_at: args.openedAt,
+		...(form.accountEquity.trim() ? { account_equity: Number(form.accountEquity) } : {}),
+		...(form.riskPct.trim() ? { risk_pct: Number(form.riskPct) } : {}),
+		...(computedRiskAmount !== null ? { risk_amount: computedRiskAmount } : {}),
+		...(form.positionSize.trim() ? { position_size: Number(form.positionSize) } : {}),
+		position_unit: form.positionUnit,
+		session: form.session,
+		...(form.marketArrivalContext ? { market_arrival_context: form.marketArrivalContext } : {}),
+		pre_trade_emotion: form.preTradeEmotion,
+		...(form.urgeToChase.trim() ? { urge_to_chase: Number(form.urgeToChase) } : {}),
 	};
 	copyKhanTradeMetadata(args.initialTrade, trade);
 
@@ -238,13 +243,9 @@ function createTradeEntry(args: CreateTradeEntryArgs): TradeEntry {
 }
 
 function copyKhanTradeMetadata(source: TradeEntry | undefined, target: TradeEntry): void {
-	if (!source) {
-		return;
-	}
+	if (!source) return;
 	for (const field of KHAN_TRADE_FIELDS) {
 		const value = source[field];
-		if (value !== undefined) {
-			target[field] = value;
-		}
+		if (value !== undefined) target[field] = value;
 	}
 }

@@ -3,14 +3,35 @@ import type {
 	KhanDecisionResult,
 	KhanDecisionSnapshot,
 	KhanQuestionNode,
+	KhanSetupId,
 } from './types';
 
+const SETUP_START_PAGES: Record<KhanSetupId, number> = {
+	'setup-1': 2,
+	'setup-2': 18,
+	'setup-3': 24,
+	'setup-4': 37,
+	'setup-5': 41,
+	'setup-6': 51,
+};
+
 export function createKhanDecisionSnapshot(): KhanDecisionSnapshot {
+	return createSnapshot(KHAN_START_PAGE, null);
+}
+
+export function createKhanDecisionSnapshotForSetup(setup: KhanSetupId): KhanDecisionSnapshot {
+	return createSnapshot(SETUP_START_PAGES[setup], setup);
+}
+
+function createSnapshot(page: number, setup: KhanSetupId | null): KhanDecisionSnapshot {
+	if (!KHAN_RULES[page]) {
+		throw new Error(`Khan decision page ${page} is not defined.`);
+	}
 	return {
-		page: KHAN_START_PAGE,
-		setup: null,
+		page,
+		setup,
 		decisions: [],
-		pages: [KHAN_START_PAGE],
+		pages: [page],
 		history: [],
 	};
 }

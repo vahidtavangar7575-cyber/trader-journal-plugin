@@ -20,6 +20,7 @@ import { TradeExecutionFields } from './components/TradeExecutionFields';
 import { TradeFormActions } from './components/TradeFormActions';
 import { TradeIdentityFields } from './components/TradeIdentityFields';
 import { TradeImageFields } from './components/TradeImageFields';
+import { TradeRiskPsychologyFields } from './components/TradeRiskPsychologyFields';
 import { TradeSetupFields } from './components/TradeSetupFields';
 import { useTradeAttachments } from './hooks/useTradeAttachments';
 import { useTradeReferenceData } from './hooks/useTradeReferenceData';
@@ -45,6 +46,7 @@ export function TraderJournalForm({
 
 	const isLiveJournal = journalType === 'live';
 	const isEditing = Boolean(initialTrade && targetFilePath);
+	const isKhanTrade = Boolean(initialTrade?.khan_setup || form.tags.split(',').some((tag) => tag.trim() === 'khan'));
 	const { isLoadingPlans, isLoadingSetups, planOptions, setupOptions } = useTradeReferenceData({
 		form,
 		initialTrade,
@@ -240,6 +242,33 @@ export function TraderJournalForm({
 				onSetupChange={updateSetup}
 				onTagsChange={(tags) => updateField('tags', tags)}
 			/>
+
+			<TradeRiskPsychologyFields
+				form={form}
+				onAccountEquityChange={(value) => updateField('accountEquity', value)}
+				onRiskPctChange={(value) => updateField('riskPct', value)}
+				onPositionSizeChange={(value) => updateField('positionSize', value)}
+				onPositionUnitChange={(value) => updateField('positionUnit', value)}
+				onSessionChange={(value) => updateField('session', value)}
+				onMarketArrivalContextChange={(value) => updateField('marketArrivalContext', value)}
+				onPreTradeEmotionChange={(value) => updateField('preTradeEmotion', value)}
+				onUrgeToChaseChange={(value) => updateField('urgeToChase', value)}
+			/>
+
+			{isKhanTrade ? (
+				<section className="trader-journal-review-form">
+					<div className="trader-journal-review-form__header">
+						<h3>پروتکل تصویر معامله خان</h3>
+						<p>تصویرها باید تصمیم را بازسازی کنند، نه فقط نتیجه را زیبا نشان دهند.</p>
+					</div>
+					<ol>
+						<li><b>قبل از ورود — M15/HTF:</b> ساختار، POI، نقدینگی هدف، PDH/PDL یا Session context را کامل نشان بده.</li>
+						<li><b>قبل از ورود — M1/LTF:</b> IDM/CHOCH/Flip/OF/SCOB، محل Entry، SL و Target را نشان بده.</li>
+						<li><b>بعد از خروج — M1/LTF:</b> نقطه اجرای واقعی و علت خروج را ثبت کن.</li>
+						<li><b>بعد از معامله — M15/HTF:</b> اختیاری ولی توصیه‌شده؛ نشان بده سناریوی بزرگ‌تر چگونه تمام شد.</li>
+					</ol>
+				</section>
+			) : null}
 
 			<TradeImageFields
 				images={form.images}

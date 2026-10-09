@@ -35,6 +35,15 @@ export default defineConfig(
 	},
 	...obsidianmd.configs.recommended,
 	{
+		files: ['src/ui/KhanDecisionWizardModal.tsx'],
+		rules: {
+			// The cockpit prototype injects a scoped style element so it can be evaluated
+			// independently before the final CSS is promoted into the root styles.css.
+			'obsidianmd/no-forbidden-elements': 'off',
+			'obsidianmd/prefer-create-el': 'off',
+		},
+	},
+	{
 		files: ['tests/**/*.ts'],
 		rules: {
 			'obsidianmd/no-global-this': 'off',

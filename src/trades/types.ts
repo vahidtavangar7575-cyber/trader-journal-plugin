@@ -8,6 +8,9 @@ export type LiveTradeStatus = 'open' | 'closed';
 export type TradeReviewContext = 'correct' | 'partial' | 'wrong';
 export type TradeReviewEntryTiming = 'early' | 'on_time' | 'late';
 export type TradeReviewPlanAdherence = 'followed' | 'partial' | 'not_followed' | 'no_plan';
+export type TradePositionUnit = 'lot' | 'contract' | 'unit';
+export type TradeSession = 'asia' | 'london' | 'new_york' | 'overlap' | 'other';
+export type PreTradeEmotion = 'calm' | 'neutral' | 'activated';
 export type TradeReviewMistakeTag =
 	| 'wrong_context'
 	| 'early_entry'
@@ -57,6 +60,15 @@ export interface TradeEntry {
 	stop_loss?: number | string;
 	exit_price?: number | string;
 	take_profit?: number | string;
+	account_equity?: number | string;
+	risk_pct?: number | string;
+	risk_amount?: number | string;
+	position_size?: number | string;
+	position_unit?: string;
+	session?: string;
+	market_arrival_context?: string;
+	pre_trade_emotion?: string;
+	urge_to_chase?: number | string;
 	images?: Array<TradeImage | string> | string;
 	notes?: string;
 	opened_at?: string;
