@@ -39,6 +39,7 @@ function SettingsView({ plugin }: SettingsViewProps) {
 	const saveLanguage = (value: TraderJournalLanguage) => {
 		setLanguage(value);
 		plugin.settings.language = value;
+		document.body.classList.toggle('trader-journal-fa', value === 'fa');
 		void plugin.saveSettings();
 		plugin.app.workspace.trigger(LANGUAGE_CHANGE_EVENT, value);
 	};
@@ -143,6 +144,7 @@ function SettingsView({ plugin }: SettingsViewProps) {
 				>
 					<option value="en">{tr('option.english')}</option>
 					<option value="vi">{tr('option.vietnamese')}</option>
+					<option value="fa">{tr('option.persian')}</option>
 				</select>
 			</label>
 

@@ -2,7 +2,7 @@ import { ECONOMIC_IMPACTS } from './economicCalendar/types';
 import type { EconomicImpact } from './economicCalendar/types';
 
 export type CalendarDisplayMode = 'month' | 'horizontal_calendar';
-export type TraderJournalLanguage = 'en' | 'vi';
+export type TraderJournalLanguage = 'en' | 'vi' | 'fa';
 export const CALENDAR_DISPLAY_MODE_CHANGE_EVENT = 'trader-journal-calendar-display-mode-change';
 export const LANGUAGE_CHANGE_EVENT = 'trader-journal-language-change';
 export const ECONOMIC_CALENDAR_SETTINGS_CHANGE_EVENT = 'trader-journal-economic-calendar-settings-change';
@@ -37,7 +37,7 @@ export const DEFAULT_SETTINGS: TraderJournalSettings = {
 	allowRemoteImages: false,
 	openImageModalOnClick: true,
 	calendarDisplayMode: 'month',
-	language: 'en',
+	language: 'fa',
 	economicCalendarEnabled: false,
 	economicCalendarShowAll: false,
 	economicCalendarTimeZone: DEFAULT_ECONOMIC_CALENDAR_TIME_ZONE,
@@ -86,7 +86,7 @@ function normalizeCalendarDisplayMode(value: unknown): CalendarDisplayMode {
 }
 
 function normalizeLanguage(value: unknown): TraderJournalLanguage {
-	return value === 'vi' ? 'vi' : DEFAULT_SETTINGS.language;
+	return value === 'vi' || value === 'fa' ? value : DEFAULT_SETTINGS.language;
 }
 
 function normalizeTimeZone(value: unknown): string {
