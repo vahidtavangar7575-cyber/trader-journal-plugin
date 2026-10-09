@@ -26,7 +26,11 @@ jobs:
 
       - name: Apply Persian patch
         run: |
-          python scripts/apply-persian-localization.py
+          if ! grep -Fq "export type TraderJournalLanguage = 'en' | 'vi' | 'fa';" src/settings.ts; then
+            python scripts/apply-persian-localization.py
+          else
+            echo "Base Persian localization already applied."
+          fi
           python scripts/fix-persian-i18n-keys.py
 
       - name: Commit generated changes
