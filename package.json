@@ -1,7 +1,7 @@
 {
 	"name": "trader-journal-plugin",
-	"version": "1.6.1",
-	"description": "Trading journal for Obsidian with Persian/RTL support and Khan decision workflows.",
+	"version": "1.7.0",
+	"description": "Trading cockpit for Obsidian with Persian/RTL support, Khan decision workflows, risk context, and trading review.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
