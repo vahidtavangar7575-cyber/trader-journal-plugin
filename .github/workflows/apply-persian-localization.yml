@@ -6,6 +6,7 @@ on:
       - feature/persian-rtl
     paths:
       - scripts/apply-persian-localization.py
+      - scripts/fix-persian-i18n-keys.py
       - .github/workflows/apply-persian-localization.yml
   workflow_dispatch:
 
@@ -24,7 +25,9 @@ jobs:
           fetch-depth: 0
 
       - name: Apply Persian patch
-        run: python scripts/apply-persian-localization.py
+        run: |
+          python scripts/apply-persian-localization.py
+          python scripts/fix-persian-i18n-keys.py
 
       - name: Commit generated changes
         run: |
