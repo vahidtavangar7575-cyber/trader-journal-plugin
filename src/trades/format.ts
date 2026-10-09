@@ -22,6 +22,16 @@ const RESULT_LABELS: Record<TraderJournalLanguage, Record<string, string>> = {
 		'hòa vốn': 'Hòa vốn',
 		'hoa von': 'Hòa vốn',
 	},
+	fa: {
+		loss: 'ضرر',
+		thua: 'ضرر',
+		win: 'برد',
+		'thắng': 'برد',
+		breakeven: 'سر‌به‌سر',
+		'hoà vốn': 'سر‌به‌سر',
+		'hòa vốn': 'سر‌به‌سر',
+		'hoa von': 'سر‌به‌سر',
+	},
 };
 
 const SIDE_LABELS: Record<TraderJournalLanguage, Record<string, string>> = {
@@ -32,6 +42,10 @@ const SIDE_LABELS: Record<TraderJournalLanguage, Record<string, string>> = {
 	vi: {
 		long: 'Long',
 		short: 'Short',
+	},
+	fa: {
+		long: 'خرید',
+		short: 'فروش',
 	},
 };
 

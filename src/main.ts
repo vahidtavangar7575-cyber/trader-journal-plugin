@@ -1,6 +1,6 @@
 import { Plugin } from 'obsidian';
 import { registerCommands } from './commands';
-import { LANGUAGE_CHANGE_EVENT, normalizeSettings, TraderJournalSettings } from './settings';
+import { normalizeSettings, TraderJournalSettings } from './settings';
 import { TraderJournalSettingTab } from './ui/SettingsTab';
 import {
 	openTraderJournalCalendar,
@@ -39,7 +39,6 @@ export default class TraderJournalPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 		this.syncPersianDirection();
-		this.registerEvent(this.app.workspace.on(LANGUAGE_CHANGE_EVENT, () => this.syncPersianDirection()));
 		this.economicCalendarService = new EconomicCalendarService(this);
 		this.journalDataService = new JournalDataService(this);
 		this.referenceDataService = new ReferenceDataService(this);
