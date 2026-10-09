@@ -3,10 +3,13 @@ import { normalizeSymbol } from '../../settings';
 import { formatTags, normalizeTradeImages, stringifyValue } from '../../trades/format';
 import { calculateHoldingTime } from '../../trades/storage';
 import type {
+	PreTradeEmotion,
 	TradeEntry,
 	TradeImage,
 	TradeJournalType,
+	TradePositionUnit,
 	TradeResult,
+	TradeSession,
 	TradeSide,
 } from '../../trades/types';
 import type TraderJournalPlugin from '../../main';
@@ -31,6 +34,14 @@ export interface TradeFormState {
 	stopLoss: string;
 	exitPrice: string;
 	takeProfit: string;
+	accountEquity: string;
+	riskPct: string;
+	positionSize: string;
+	positionUnit: TradePositionUnit;
+	session: TradeSession;
+	marketArrivalContext: string;
+	preTradeEmotion: PreTradeEmotion;
+	urgeToChase: string;
 	images: TradeImage[];
 	notes: string;
 	openedAt: string;
@@ -56,6 +67,14 @@ export function createInitialTradeForm(
 		stopLoss: stringifyValue(initialTrade?.stop_loss),
 		exitPrice: stringifyValue(initialTrade?.exit_price),
 		takeProfit: stringifyValue(initialTrade?.take_profit),
+		accountEquity: stringifyValue(initialTrade?.account_equity),
+		riskPct: stringifyValue(initialTrade?.risk_pct ?? initialTrade?.khan_approved_risk_pct ?? initialTrade?.khan_risk_pct),
+		positionSize: stringifyValue(initialTrade?.position_size),
+		positionUnit: normalizePositionUnit(initialTrade?.position_unit),
+		session: normalizeSession(initialTrade?.session),
+		marketArrivalContext: stringifyValue(initialTrade?.market_arrival_context),
+		preTradeEmotion: normalizePreTradeEmotion(initialTrade?.pre_trade_emotion),
+		urgeToChase: stringifyValue(initialTrade?.urge_to_chase),
 		images: normalizeTradeImages(initialTrade?.images),
 		notes: stringifyValue(initialTrade?.notes),
 		openedAt: toDateTimeLocalInput(initialTrade?.opened_at),
@@ -115,6 +134,22 @@ export function validateTradeForm(
 	const rr = Number(form.rr);
 	if (journalType === 'backtest' && !Number.isFinite(rr)) {
 		return tr('error.rrNumber');
+	}
+
+	if (form.accountEquity.trim() && !isPositiveNumber(form.accountEquity)) {
+		return 'سرمایه حساب باید یک عدد بزرگ‌تر از صفر باشد.';
+	}
+	if (form.riskPct.trim() && !isPositiveNumber(form.riskPct)) {
+		return 'درصد ریسک باید یک عدد بزرگ‌تر از صفر باشد.';
+	}
+	if (form.positionSize.trim() && !isPositiveNumber(form.positionSize)) {
+		return 'حجم معامله باید یک عدد بزرگ‌تر از صفر باشد.';
+	}
+	if (form.urgeToChase.trim()) {
+		const urge = Number(form.urgeToChase);
+		if (!Number.isFinite(urge) || urge < 0 || urge > 10) {
+			return 'شدت میل به تعقیب قیمت باید بین ۰ تا ۱۰ باشد.';
+		}
 	}
 
 	if (journalType === 'live') {
@@ -226,6 +261,32 @@ export function getTradeResultFromRr(rr: number): TradeResult {
 
 export function formatComputedRr(value: number): string {
 	return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+}
+
+export function calculateRiskAmount(accountEquity: string, riskPct: string): number | null {
+	const equity = Number(accountEquity);
+	const risk = Number(riskPct);
+	if (!Number.isFinite(equity) || equity <= 0 || !Number.isFinite(risk) || risk <= 0) {
+		return null;
+	}
+	return roundNumber(equity * risk / 100);
+}
+
+function normalizePositionUnit(value: unknown): TradePositionUnit {
+	return value === 'contract' || value === 'unit' ? value : 'lot';
+}
+
+function normalizeSession(value: unknown): TradeSession {
+	return value === 'asia' || value === 'london' || value === 'new_york' || value === 'overlap' ? value : 'other';
+}
+
+function normalizePreTradeEmotion(value: unknown): PreTradeEmotion {
+	return value === 'calm' || value === 'activated' ? value : 'neutral';
+}
+
+function isPositiveNumber(value: string): boolean {
+	const parsed = Number(value);
+	return Number.isFinite(parsed) && parsed > 0;
 }
 
 function parseRequiredNumber(value: string): number | null {
