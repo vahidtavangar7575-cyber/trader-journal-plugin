@@ -1,17 +1,41 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { DAILY_TRADING_COMMITMENT, isCommitmentComplete } from '../src/behavior/commitment';
 import {
 	answerKhanDecision,
 	backKhanDecision,
 	continueKhanDecision,
 	createKhanDecisionSnapshot,
+	createKhanDecisionSnapshotForSetup,
 	getKhanDecisionResult,
 	validateKhanRuleGraph,
 } from '../src/khan/engine';
-import type { KhanDecisionSnapshot } from '../src/khan/types';
+import type { KhanDecisionSnapshot, KhanSetupId } from '../src/khan/types';
 
 void test('Khan rule graph has no missing targets', () => {
 	assert.deepEqual(validateKhanRuleGraph(), []);
+});
+
+void test('all six setups can be opened directly at their source start page', () => {
+	const expected: Record<KhanSetupId, number> = {
+		'setup-1': 2,
+		'setup-2': 18,
+		'setup-3': 24,
+		'setup-4': 37,
+		'setup-5': 41,
+		'setup-6': 51,
+	};
+	for (const [setup, page] of Object.entries(expected) as Array<[KhanSetupId, number]>) {
+		const snapshot = createKhanDecisionSnapshotForSetup(setup);
+		assert.equal(snapshot.setup, setup);
+		assert.equal(snapshot.page, page);
+	}
+});
+
+void test('commitment gate requires the complete normalized pledge', () => {
+	assert.equal(isCommitmentComplete(''), false);
+	assert.equal(isCommitmentComplete(DAILY_TRADING_COMMITMENT), true);
+	assert.equal(isCommitmentComplete(`  ${DAILY_TRADING_COMMITMENT.replaceAll(' ', '  ')}  `), true);
 });
 
 void test('Setup 1 all-decisional route yields 0.1 percent risk', () => {
