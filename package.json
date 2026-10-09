@@ -1,6 +1,6 @@
 {
 	"name": "trader-journal-plugin",
-	"version": "1.6.0",
+	"version": "1.6.1",
 	"description": "Trading journal for Obsidian with Persian/RTL support and Khan decision workflows.",
 	"main": "main.js",
 	"type": "module",

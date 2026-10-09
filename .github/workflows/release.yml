@@ -65,6 +65,18 @@ jobs:
               run: |
                   [ -f styles.css ] && echo "exists=true" >> "$GITHUB_OUTPUT" || echo "exists=false" >> "$GITHUB_OUTPUT"
 
+            - name: Build manual-install package
+              shell: bash
+              run: |
+                  rm -rf dist-release
+                  mkdir -p dist-release/trader-journal
+                  cp main.js manifest.json dist-release/trader-journal/
+                  if [ -f styles.css ]; then
+                      cp styles.css dist-release/trader-journal/
+                  fi
+                  cd dist-release
+                  zip -r "trader-journal-${{ steps.release.outputs.version }}.zip" trader-journal
+
             - name: Attest build provenance
               uses: actions/attest@v4
               with:
@@ -72,6 +84,7 @@ jobs:
                       main.js
                       manifest.json
                       ${{ steps.styles.outputs.exists == 'true' && 'styles.css' || '' }}
+                      dist-release/trader-journal-${{ steps.release.outputs.version }}.zip
 
             - name: Create or update release
               env:
@@ -79,7 +92,7 @@ jobs:
                   RELEASE_VERSION: ${{ steps.release.outputs.version }}
               shell: bash
               run: |
-                  assets=(main.js manifest.json)
+                  assets=(main.js manifest.json "dist-release/trader-journal-${RELEASE_VERSION}.zip")
                   if [ "${{ steps.styles.outputs.exists }}" = "true" ]; then
                       assets+=(styles.css)
                   fi
