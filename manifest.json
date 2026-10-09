@@ -1,9 +1,9 @@
 {
 	"id": "trader-journal",
 	"name": "Trader Journal",
-	"version": "1.6.1",
+	"version": "1.7.0",
 	"minAppVersion": "1.6.6",
-	"description": "Persian/RTL trading journal with Khan decision wizard, plans, statistics, images, and economic calendar.",
+	"description": "Persian/RTL trading cockpit with Khan decision wizard, risk context, plans, statistics, images, and economic calendar.",
 	"author": "LamPhucHai",
 	"authorUrl": "https://github.com/hailp-vn38",
 	"isDesktopOnly": false
