@@ -1,6 +1,6 @@
 import { Plugin } from 'obsidian';
 import { registerCommands } from './commands';
-import { normalizeSettings, TraderJournalSettings } from './settings';
+import { LANGUAGE_CHANGE_EVENT, normalizeSettings, TraderJournalSettings } from './settings';
 import { TraderJournalSettingTab } from './ui/SettingsTab';
 import {
 	openTraderJournalCalendar,
@@ -38,6 +38,8 @@ export default class TraderJournalPlugin extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
+		this.syncPersianDirection();
+		this.registerEvent(this.app.workspace.on(LANGUAGE_CHANGE_EVENT, () => this.syncPersianDirection()));
 		this.economicCalendarService = new EconomicCalendarService(this);
 		this.journalDataService = new JournalDataService(this);
 		this.referenceDataService = new ReferenceDataService(this);
@@ -58,6 +60,14 @@ export default class TraderJournalPlugin extends Plugin {
 		registerTradeBlockProcessor(this);
 		registerPlanBlockProcessor(this);
 		this.addSettingTab(new TraderJournalSettingTab(this.app, this));
+	}
+
+	onunload() {
+		document.body.classList.remove('trader-journal-fa');
+	}
+
+	private syncPersianDirection() {
+		document.body.classList.toggle('trader-journal-fa', this.settings.language === 'fa');
 	}
 
 	async loadSettings() {

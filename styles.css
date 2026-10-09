@@ -42,7 +42,8 @@
 	flex-direction: column;
 	gap: 12px;
 	min-height: 0;
-	padding: 0 4px 16px 0;
+	padding-block: 0 16px;
+	padding-inline: 0 4px;
 	overflow-y: auto;
 	overscroll-behavior: contain;
 	scrollbar-gutter: stable;
@@ -3164,4 +3165,51 @@ button.trader-journal-dashboard-plan-card__open:focus-visible {
 	.trader-journal-dashboard__review-grid {
 		grid-template-columns: 1fr;
 	}
+}
+
+
+/* Persian / RTL ---------------------------------------------------------- */
+body.trader-journal-fa .trader-journal-modal,
+body.trader-journal-fa .trader-journal-settings,
+body.trader-journal-fa .trader-journal-dashboard,
+body.trader-journal-fa .trader-journal-calendar,
+body.trader-journal-fa .trader-journal-trade-card,
+body.trader-journal-fa .trader-journal-plan-card,
+body.trader-journal-fa .trader-journal-setup-card {
+	direction: rtl;
+	text-align: start;
+}
+
+body.trader-journal-fa .trader-journal-form__grid,
+body.trader-journal-fa .trader-journal-review-form__grid,
+body.trader-journal-fa .trader-journal-setting {
+	direction: rtl;
+}
+
+body.trader-journal-fa input[type='number'],
+body.trader-journal-fa input[type='date'],
+body.trader-journal-fa input[type='datetime-local'],
+body.trader-journal-fa input[type='time'],
+body.trader-journal-fa .trader-journal-price,
+body.trader-journal-fa .trader-journal-symbol,
+body.trader-journal-fa code,
+body.trader-journal-fa pre {
+	direction: ltr;
+	text-align: left;
+	unicode-bidi: isolate;
+}
+
+body.trader-journal-fa .trader-journal-add-row,
+body.trader-journal-fa .trader-journal-toggle,
+body.trader-journal-fa .trader-journal-pill,
+body.trader-journal-fa .trader-journal-setup-select-row,
+body.trader-journal-fa .trader-journal-setting__checkbox-list label,
+body.trader-journal-fa .trader-journal-setup-symbols__options label {
+	direction: rtl;
+}
+
+body.trader-journal-fa select,
+body.trader-journal-fa textarea,
+body.trader-journal-fa input[type='text'] {
+	text-align: start;
 }

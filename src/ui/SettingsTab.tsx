@@ -143,6 +143,7 @@ function SettingsView({ plugin }: SettingsViewProps) {
 				>
 					<option value="en">{tr('option.english')}</option>
 					<option value="vi">{tr('option.vietnamese')}</option>
+					<option value="fa">{tr('option.persian')}</option>
 				</select>
 			</label>
 
