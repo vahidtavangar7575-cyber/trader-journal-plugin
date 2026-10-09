@@ -41,11 +41,18 @@ export interface KhanDecisionRecord {
 	answerLabel: string;
 }
 
+export interface KhanDecisionCheckpoint {
+	page: number;
+	setup: KhanSetupId | null;
+	decisionCount: number;
+}
+
 export interface KhanDecisionSnapshot {
 	page: number;
 	setup: KhanSetupId | null;
 	decisions: KhanDecisionRecord[];
 	pages: number[];
+	history: KhanDecisionCheckpoint[];
 }
 
 export interface KhanDecisionResult {
