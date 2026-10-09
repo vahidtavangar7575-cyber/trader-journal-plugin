@@ -324,11 +324,15 @@ function shadowLocationQuestion(
 	firstTarget: number,
 	secondTarget: number,
 ): KhanDecisionNode {
-	const high = { id: 'break-high', label: 'در حال شکستن سقف با Shadow', nextPage: 0 };
-	const low = { id: 'break-low', label: 'در حال شکستن کف با Shadow', nextPage: 0 };
-	const answers = order === 'high-first' ? [high, low] : [low, high];
-	answers[0] = { ...answers[0], nextPage: firstTarget };
-	answers[1] = { ...answers[1], nextPage: secondTarget };
+	const answers = order === 'high-first'
+		? [
+			{ id: 'break-high', label: 'در حال شکستن سقف با Shadow', nextPage: firstTarget },
+			{ id: 'break-low', label: 'در حال شکستن کف با Shadow', nextPage: secondTarget },
+		]
+		: [
+			{ id: 'break-low', label: 'در حال شکستن کف با Shadow', nextPage: firstTarget },
+			{ id: 'break-high', label: 'در حال شکستن سقف با Shadow', nextPage: secondTarget },
+		];
 	return {
 		kind: 'question',
 		page,
