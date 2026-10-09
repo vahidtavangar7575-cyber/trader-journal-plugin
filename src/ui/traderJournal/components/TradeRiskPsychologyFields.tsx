@@ -105,7 +105,7 @@ export function TradeRiskPsychologyFields({
 
 			{showChaseWarning ? (
 				<div className="trader-journal-form__error">
-					میل به تعقیب قیمت بالاست. این هشدار به معنی ممنوعیت قطعی نیست، اما قبل از ورود باید دوباره بررسی کنی آیا Trigger هنوز معتبر است یا فقط از置 missed move ناراحت شده‌ای.
+					میل به تعقیب قیمت بالاست. قبل از ورود دوباره بررسی کن آیا Trigger هنوز معتبر است یا فقط از حرکت از دست‌رفته ناراحت شده‌ای.
 				</div>
 			) : null}
 		</section>
