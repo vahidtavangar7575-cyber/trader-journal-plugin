@@ -102,13 +102,14 @@ export async function ensureKhanSetup(
 }
 
 function populateSetupSections(content: string, template: KhanSetupTemplate): string {
-	return [
+	const sections: Array<readonly [string, string]> = [
 		['Description', template.description],
 		['Entry criteria', template.entryCriteria],
 		['Invalidation', template.invalidation],
 		['Take profit', template.takeProfit],
 		['Risk rules', template.riskRules],
-	].reduce((current, [heading, value]) => replaceSection(current, heading, value), content);
+	];
+	return sections.reduce((current, section) => replaceSection(current, section[0], section[1]), content);
 }
 
 function replaceSection(content: string, heading: string, value: string): string {
