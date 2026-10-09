@@ -6,10 +6,19 @@ import { openTraderJournalCalendar } from '../ui/TradeCalendarView';
 import { TradePlanModal } from '../ui/TradePlanModal';
 import { TraderJournalModal } from '../ui/TraderJournalModal';
 import { TradeSetupModal } from '../ui/TradeSetupModal';
+import { KhanDecisionWizardModal } from '../ui/KhanDecisionWizardModal';
 import { openTraderJournalDashboard } from '../dashboard/DashboardView';
 
 export function registerCommands(plugin: TraderJournalPlugin) {
 	const tr = getTranslator(plugin.settings.language);
+
+	plugin.addCommand({
+		id: 'open-khan-decision-wizard',
+		name: 'راهنمای تصمیم ستاپ‌های خان',
+		callback: () => {
+			new KhanDecisionWizardModal(plugin.app, plugin).open();
+		},
+	});
 
 	plugin.addCommand({
 		id: 'add-backtest-trade',
