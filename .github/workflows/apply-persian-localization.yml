@@ -1,0 +1,39 @@
+name: Apply Persian localization
+
+on:
+  push:
+    branches:
+      - feature/persian-rtl
+    paths:
+      - scripts/apply-persian-localization.py
+      - .github/workflows/apply-persian-localization.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/persian-rtl
+          fetch-depth: 0
+
+      - name: Apply Persian patch
+        run: python scripts/apply-persian-localization.py
+
+      - name: Commit generated changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/settings.ts src/i18n.ts src/main.ts src/ui/SettingsTab.tsx styles.css docs/PERSIAN.md
+          if git diff --cached --quiet; then
+            echo "No generated changes to commit."
+            exit 0
+          fi
+          git commit -m "feat: add Persian localization and RTL support"
+          git push origin HEAD:feature/persian-rtl
