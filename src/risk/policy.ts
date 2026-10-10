@@ -222,7 +222,7 @@ function isCompletedTrade(trade: TradeEntry): boolean {
 function getTradeDate(trade: TradeEntry): string {
 	const openedAt = typeof trade.opened_at === 'string' ? trade.opened_at : '';
 	const match = openedAt.match(/^(\d{4}-\d{2}-\d{2})/);
-	if (match) return match[1];
+	if (match?.[1]) return match[1];
 	const date = typeof trade.date === 'string' ? trade.date : '';
 	const dateMatch = date.match(/^(\d{4}-\d{2}-\d{2})/);
 	return dateMatch?.[1] ?? '';
@@ -233,7 +233,11 @@ function compareTradesChronologically(a: TradeEntry, b: TradeEntry): number {
 }
 
 function startOfIsoWeek(dateKey: string): string {
-	const [year, month, day] = dateKey.split('-').map(Number);
+	const match = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+	if (!match?.[1] || !match[2] || !match[3]) return dateKey;
+	const year = Number(match[1]);
+	const month = Number(match[2]);
+	const day = Number(match[3]);
 	const date = new Date(Date.UTC(year, month - 1, day));
 	const weekday = date.getUTCDay() || 7;
 	date.setUTCDate(date.getUTCDate() - weekday + 1);
