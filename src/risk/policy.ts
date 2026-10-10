@@ -84,11 +84,12 @@ export function evaluateRiskPolicy({
 		: [];
 	const targetDate = isDateKey(date) ? date : localDateKey(new Date());
 	const todayTrades = relevantTrades
-		.filter((trade) => getTradeDate(trade) === targetDate && isCompletedTrade(trade))
+		.filter((trade) => getTradeDate(trade) === targetDate)
 		.sort(compareTradesChronologically);
-	const lossesToday = todayTrades.filter((trade) => getRealizedRr(trade) < 0).length;
-	const dailyPnlPct = sum(todayTrades.map(getTradePnlPct));
-	const firstTwoPnlPct = sum(todayTrades.slice(0, 2).map(getTradePnlPct));
+	const completedToday = todayTrades.filter(isCompletedTrade);
+	const lossesToday = completedToday.filter((trade) => getRealizedRr(trade) < 0).length;
+	const dailyPnlPct = sum(completedToday.map(getTradePnlPct));
+	const firstTwoPnlPct = sum(todayTrades.slice(0, 2).filter(isCompletedTrade).map(getTradePnlPct));
 	const tradeNumber = todayTrades.length + 1;
 	const weekBaseRiskPct = calculateWeekBaseRisk(normalizedPolicy, relevantTrades, targetDate);
 	const dayBaseRiskPct = calculateDayBaseRisk(normalizedPolicy, relevantTrades, targetDate, weekBaseRiskPct);
