@@ -11,6 +11,7 @@ interface TradeExecutionFieldsProps {
 	isLiveJournal: boolean;
 	isLiveTradeClosed: boolean;
 	liveRr: number | null;
+	targetR: number;
 	tr: Translator;
 	onClosedAtChange: (value: string) => void;
 	onEntryPriceChange: (value: string) => void;
@@ -19,6 +20,7 @@ interface TradeExecutionFieldsProps {
 	onRrChange: (value: string) => void;
 	onStopLossChange: (value: string) => void;
 	onTakeProfitChange: (value: string) => void;
+	onApplyTargetRr: () => void;
 }
 
 export function TradeExecutionFields({
@@ -28,6 +30,7 @@ export function TradeExecutionFields({
 	isLiveJournal,
 	isLiveTradeClosed,
 	liveRr,
+	targetR,
 	tr,
 	onClosedAtChange,
 	onEntryPriceChange,
@@ -36,6 +39,7 @@ export function TradeExecutionFields({
 	onRrChange,
 	onStopLossChange,
 	onTakeProfitChange,
+	onApplyTargetRr,
 }: TradeExecutionFieldsProps) {
 	return (
 		<>
@@ -65,9 +69,12 @@ export function TradeExecutionFields({
 							required={isLiveTradeClosed} />
 					</label>
 					<label className="trader-journal-field">
-						<span>{tr('detail.takeProfit')}</span>
-						<input type="number" step="any" value={form.takeProfit} placeholder="104"
-							onChange={(event: ChangeEvent<HTMLInputElement>) => onTakeProfitChange(event.target.value)} required />
+						<span>{tr('detail.takeProfit')} · هدف فعلی {formatComputedRr(targetR)}R</span>
+						<div className="trader-journal-setup-select-row">
+							<input type="number" step="any" value={form.takeProfit} placeholder="104"
+								onChange={(event: ChangeEvent<HTMLInputElement>) => onTakeProfitChange(event.target.value)} required />
+							<button type="button" onClick={onApplyTargetRr}>تنظیم {formatComputedRr(targetR)}R</button>
+						</div>
 					</label>
 				</>
 			) : null}
