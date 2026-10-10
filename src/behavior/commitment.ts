@@ -2,10 +2,58 @@ export const DAILY_TRADING_COMMITMENT = `من امروز برای پیش‌بی�
 
 export const SHORT_TRADING_COMMITMENT = 'فرایند مهم‌تر از نتیجه است؛ فقط ستاپ کامل، ریسک مجاز و اجرای دقیق.';
 
+const PERSIAN_CHAR_NORMALIZATION: Array<[RegExp, string]> = [
+	[/ي|ى/g, 'ی'],
+	[/ك/g, 'ک'],
+	[/ۀ/g, 'ه'],
+	[/ة/g, 'ه'],
+	[/ؤ/g, 'و'],
+	[/إ|أ/g, 'ا'],
+];
+
 export function normalizeCommitment(value: string): string {
-	return value.replace(/\s+/g, ' ').trim();
+	let normalized = value.normalize('NFKC');
+	for (const [pattern, replacement] of PERSIAN_CHAR_NORMALIZATION) {
+		normalized = normalized.replace(pattern, replacement);
+	}
+	return normalized
+		.replace(/\u200C/g, ' ')
+		.replace(/[\u200B\u200D-\u200F\u202A-\u202E\u2060\uFEFF]/g, '')
+		.replace(/[؛;،,.!?؟:«»"'(){}…ـ]/g, ' ')
+		.replaceAll('[', ' ')
+		.replaceAll(']', ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
+export function getCommitmentMatchScore(value: string): number {
+	const input = normalizeCommitment(value);
+	const target = normalizeCommitment(DAILY_TRADING_COMMITMENT);
+	if (!input) return 0;
+	if (input === target) return 100;
+
+	const inputTokens = input.split(' ');
+	const targetTokens = target.split(' ');
+	const maxTokens = Math.max(inputTokens.length, targetTokens.length);
+	let matchingTokens = 0;
+	for (let index = 0; index < Math.min(inputTokens.length, targetTokens.length); index += 1) {
+		if (inputTokens[index] === targetTokens[index]) matchingTokens += 1;
+	}
+	const tokenScore = maxTokens > 0 ? matchingTokens / maxTokens : 0;
+	const lengthScore = Math.min(input.length, target.length) / Math.max(input.length, target.length);
+	return Math.round((tokenScore * 0.8 + lengthScore * 0.2) * 100);
 }
 
 export function isCommitmentComplete(value: string): boolean {
-	return normalizeCommitment(value) === normalizeCommitment(DAILY_TRADING_COMMITMENT);
+	const input = normalizeCommitment(value);
+	const target = normalizeCommitment(DAILY_TRADING_COMMITMENT);
+	if (input === target) return true;
+	const lengthRatio = input.length / target.length;
+	return lengthRatio >= 0.85 && getCommitmentMatchScore(value) >= 96;
+}
+
+export function canManuallyConfirmCommitment(value: string): boolean {
+	const inputLength = normalizeCommitment(value).length;
+	const targetLength = normalizeCommitment(DAILY_TRADING_COMMITMENT).length;
+	return inputLength >= Math.max(120, targetLength * 0.55);
 }

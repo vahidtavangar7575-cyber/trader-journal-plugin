@@ -5,6 +5,8 @@ import { getTranslator } from '../../../i18n';
 import type { TradePlanOption } from '../../../plans/types';
 import { normalizeSymbol } from '../../../settings';
 import { stringifyValue } from '../../../trades/format';
+import { previewAccountLedger } from '../../../accounts/ledger';
+import type { RiskPolicyEvaluation } from '../../../risk/policy';
 import {
 	calculateHoldingTime,
 	createTradeId,
@@ -52,6 +54,8 @@ interface UseTradeSaveArgs {
 	liveRr: number | null;
 	planOptions: TradePlanOption[];
 	plugin: TraderJournalPlugin;
+	riskEvaluation: RiskPolicyEvaluation | null;
+	ruleWarnings: string[];
 	setError: (error: string) => void;
 	targetFilePath: string | undefined;
 }
@@ -78,6 +82,8 @@ export function useTradeSave({
 	liveRr,
 	planOptions,
 	plugin,
+	riskEvaluation,
+	ruleWarnings,
 	setError,
 	targetFilePath,
 }: UseTradeSaveArgs): TradeSaveController {
@@ -105,7 +111,7 @@ export function useTradeSave({
 		if (!tradeIdRef.current) {
 			tradeIdRef.current = createTradeId(symbol, openedAt, journalDate);
 		}
-		const trade = createTradeEntry({
+		const baseTrade = createTradeEntry({
 			form,
 			imageInput,
 			initialTrade,
@@ -119,6 +125,14 @@ export function useTradeSave({
 			symbol,
 			tradeId: tradeIdRef.current,
 		});
+		const ledger = previewAccountLedger(plugin.settings.accounts, initialTrade, baseTrade);
+		const trade = attachRiskPolicyMetadata(ledger.trade, riskEvaluation, ruleWarnings);
+
+		const persistLedger = async () => {
+			plugin.settings.accounts = ledger.accounts;
+			if (form.accountId) plugin.settings.lastSelectedAccountId = form.accountId;
+			await plugin.saveSettings();
+		};
 
 		try {
 			setIsSaving(true);
@@ -130,11 +144,9 @@ export function useTradeSave({
 					? await updateTradeInJournalFile(plugin, targetFilePath, trade)
 					: await saveTradeToDailyNote(plugin, journalDate, trade);
 			} catch (saveError) {
-				if (!(saveError instanceof TradePostSaveError)) {
-					throw saveError;
-				}
-
+				if (!(saveError instanceof TradePostSaveError)) throw saveError;
 				commitAttachments();
+				await persistLedger();
 				console.error('Trader Journal saved the trade but failed during post-save processing', saveError.originalError);
 				new Notice(tr('notice.savedTradePostProcessFailed', { path: saveError.file.path }));
 				if (isMounted()) closeModal();
@@ -142,6 +154,7 @@ export function useTradeSave({
 			}
 
 			commitAttachments();
+			await persistLedger();
 			if (isLiveJournal) {
 				try {
 					await syncTradePlanLink(plugin, initialTrade, trade, file.path);
@@ -154,6 +167,9 @@ export function useTradeSave({
 			}
 
 			new Notice(tr(isEditing ? 'notice.updatedTrade' : 'notice.savedTrade', { path: file.path }));
+			if (ruleWarnings.length > 0) {
+				new Notice(`معامله ذخیره شد، اما ${ruleWarnings.length} تخطی از قواعد مدیریت سرمایه نیز ثبت شد.`);
+			}
 			if (isMounted()) closeModal();
 		} catch (saveError) {
 			await failAttachmentCommit();
@@ -203,6 +219,7 @@ function createTradeEntry(args: CreateTradeEntryArgs): TradeEntry {
 		images,
 		notes: form.notes.trim(),
 		opened_at: args.openedAt,
+		...(form.accountId ? { account_id: form.accountId } : {}),
 		...(form.accountEquity.trim() ? { account_equity: Number(form.accountEquity) } : {}),
 		...(form.riskPct.trim() ? { risk_pct: Number(form.riskPct) } : {}),
 		...(computedRiskAmount !== null ? { risk_amount: computedRiskAmount } : {}),
@@ -215,9 +232,7 @@ function createTradeEntry(args: CreateTradeEntryArgs): TradeEntry {
 	};
 	copyKhanTradeMetadata(args.initialTrade, trade);
 
-	if (args.isLiveJournal && form.planId) {
-		trade.plan_id = form.planId;
-	}
+	if (args.isLiveJournal && form.planId) trade.plan_id = form.planId;
 	if (!args.isLiveJournal) {
 		trade.result = form.result;
 		trade.closed_at = args.closedAt;
@@ -236,10 +251,25 @@ function createTradeEntry(args: CreateTradeEntryArgs): TradeEntry {
 		trade.exit_price = Number(form.exitPrice);
 		trade.holding_time = calculateHoldingTime(args.openedAt, args.closedAt);
 	}
-	if (args.isLiveTradeClosed) {
-		trade.review = buildTradeReview(form.review, getCurrentLocalIsoString());
-	}
+	if (args.isLiveTradeClosed) trade.review = buildTradeReview(form.review, getCurrentLocalIsoString());
 	return trade;
+}
+
+function attachRiskPolicyMetadata(
+	trade: TradeEntry,
+	evaluation: RiskPolicyEvaluation | null,
+	warnings: string[],
+): TradeEntry {
+	if (!evaluation) return trade;
+	return {
+		...trade,
+		risk_rule_trade_number: evaluation.tradeNumber,
+		risk_rule_recommended_pct: evaluation.recommendedRiskPct,
+		risk_rule_day_base_pct: evaluation.dayBaseRiskPct,
+		risk_rule_week_base_pct: evaluation.weekBaseRiskPct,
+		risk_rule_violation: warnings.length > 0,
+		...(warnings.length ? { risk_rule_warnings: warnings } : {}),
+	};
 }
 
 function copyKhanTradeMetadata(source: TradeEntry | undefined, target: TradeEntry): void {

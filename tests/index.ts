@@ -14,3 +14,5 @@ import './temporaryAttachmentRegistry.test';
 import './linkedTrades.test';
 import './traderJournalDateTime.test';
 import './khanWizard.test';
+import './commitment.test';
+import './riskPolicy.test';

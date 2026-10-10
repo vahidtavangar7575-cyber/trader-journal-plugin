@@ -11,6 +11,7 @@ export type TradeReviewPlanAdherence = 'followed' | 'partial' | 'not_followed' |
 export type TradePositionUnit = 'lot' | 'contract' | 'unit';
 export type TradeSession = 'asia' | 'london' | 'new_york' | 'overlap' | 'other';
 export type PreTradeEmotion = 'calm' | 'neutral' | 'activated';
+export type TradeAccountType = 'backtest' | 'demo' | 'prop' | 'competition' | 'live';
 export type TradeReviewMistakeTag =
 	| 'wrong_context'
 	| 'early_entry'
@@ -60,15 +61,30 @@ export interface TradeEntry {
 	stop_loss?: number | string;
 	exit_price?: number | string;
 	take_profit?: number | string;
+	account_id?: string;
+	account_name?: string;
+	account_type?: TradeAccountType;
+	account_code?: string;
+	account_currency?: string;
 	account_equity?: number | string;
+	account_balance_before?: number | string;
+	account_balance_after?: number | string;
 	risk_pct?: number | string;
 	risk_amount?: number | string;
+	pnl_amount?: number | string;
+	pnl_pct?: number | string;
 	position_size?: number | string;
 	position_unit?: string;
 	session?: string;
 	market_arrival_context?: string;
 	pre_trade_emotion?: string;
 	urge_to_chase?: number | string;
+	risk_rule_trade_number?: number | string;
+	risk_rule_recommended_pct?: number | string;
+	risk_rule_day_base_pct?: number | string;
+	risk_rule_week_base_pct?: number | string;
+	risk_rule_violation?: boolean;
+	risk_rule_warnings?: string[];
 	images?: Array<TradeImage | string> | string;
 	notes?: string;
 	opened_at?: string;
