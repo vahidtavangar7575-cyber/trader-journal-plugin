@@ -30,6 +30,7 @@ export interface TraderJournalSettings {
 	economicCalendarImpacts: EconomicImpact[];
 	accounts: TradingAccount[];
 	lastSelectedAccountId: string;
+	lastCommitmentDate: string;
 	riskPolicy: RiskPolicySettings;
 }
 
@@ -51,6 +52,7 @@ export const DEFAULT_SETTINGS: TraderJournalSettings = {
 	economicCalendarImpacts: ['High', 'Medium'],
 	accounts: [],
 	lastSelectedAccountId: '',
+	lastCommitmentDate: '',
 	riskPolicy: { ...DEFAULT_RISK_POLICY },
 };
 
@@ -82,6 +84,7 @@ export function normalizeSettings(settings: Partial<TraderJournalSettings> | nul
 		economicCalendarImpacts: normalizeEconomicImpacts(settings?.economicCalendarImpacts),
 		accounts,
 		lastSelectedAccountId,
+		lastCommitmentDate: normalizeDateKey(settings?.lastCommitmentDate),
 		riskPolicy: normalizeRiskPolicy(settings?.riskPolicy),
 	};
 }
@@ -99,7 +102,7 @@ export function normalizeCountry(value: string): string {
 }
 
 function normalizeCalendarDisplayMode(value: unknown): CalendarDisplayMode {
-	return value === 'horizontal_calendar' ? 'horizontal_calendar' : DEFAULT_SETTINGS.calendarDisplayMode;
+	return value === 'horizontal_calendar' ? value : DEFAULT_SETTINGS.calendarDisplayMode;
 }
 
 function normalizeLanguage(value: unknown): TraderJournalLanguage {
@@ -176,6 +179,12 @@ function normalizeAccountType(value: unknown): TradingAccountType {
 	return value === 'backtest' || value === 'demo' || value === 'prop' || value === 'competition' || value === 'live'
 		? value
 		: 'demo';
+}
+
+function normalizeDateKey(value: unknown): string {
+	if (typeof value !== 'string') return '';
+	const dateKey = value.trim();
+	return /^\d{4}-\d{2}-\d{2}$/.test(dateKey) ? dateKey : '';
 }
 
 function stringField(value: unknown): string {
