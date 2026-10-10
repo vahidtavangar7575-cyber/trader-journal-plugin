@@ -57,6 +57,38 @@ void test('accepts live prices with precision greater than two decimal places', 
 	assert.equal(calculateLiveRr('long', form.entryPrice, form.stopLoss, form.takeProfit), 2);
 });
 
+void test('allows a Khan-style backtest execution ticket to stay open until the replay reaches SL or TP', () => {
+	const form = createLiveForm({
+		closedAt: '',
+		exitPrice: '',
+		rr: '',
+	});
+
+	assert.equal(validateTradeForm(form, 'backtest', translateKey, [], true), null);
+});
+
+void test('requires an exit price only when an execution-style backtest is being closed', () => {
+	const form = createLiveForm({
+		closedAt: '2026-08-20T10:30',
+		exitPrice: '',
+	});
+
+	assert.equal(validateTradeForm(form, 'backtest', translateKey, [], true), 'error.exitPriceNumber');
+	assert.equal(
+		validateTradeForm({ ...form, exitPrice: '102' }, 'backtest', translateKey, [], true),
+		null,
+	);
+});
+
+void test('keeps legacy backtests strict about RR and closed time', () => {
+	const form = createLiveForm({ rr: '', closedAt: '' });
+	assert.equal(validateTradeForm(form, 'backtest', translateKey, [], false), 'error.rrNumber');
+	assert.equal(
+		validateTradeForm({ ...form, rr: '2' }, 'backtest', translateKey, [], false),
+		'error.openedClosedRequired',
+	);
+});
+
 void test('calculates configurable target price from entry and stop', () => {
 	assert.equal(calculateTargetPriceForRr('long', '100', '99', 2), 102);
 	assert.equal(calculateTargetPriceForRr('short', '100', '101', 2), 98);
