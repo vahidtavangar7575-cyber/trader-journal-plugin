@@ -1,7 +1,7 @@
 {
 	"id": "trader-journal",
 	"name": "Trader Journal",
-	"version": "1.8.0",
+	"version": "1.9.0",
 	"minAppVersion": "1.6.6",
 	"description": "Persian/RTL trading cockpit with persistent accounts, configurable risk engine, Khan decision wizard, plans, statistics, images, and economic calendar.",
 	"author": "LamPhucHai",
