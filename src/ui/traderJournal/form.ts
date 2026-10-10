@@ -107,14 +107,8 @@ export function isTradePlanOptionCompatible(
 	date: string,
 ): boolean {
 	const normalizedSymbol = normalizeSymbol(symbol);
-	if (!normalizedSymbol || normalizeSymbol(plan.symbol) !== normalizedSymbol) {
-		return false;
-	}
-
-	if (!DATE_KEY_PATTERN.test(date) || !DATE_KEY_PATTERN.test(plan.startDate) || date < plan.startDate) {
-		return false;
-	}
-
+	if (!normalizedSymbol || normalizeSymbol(plan.symbol) !== normalizedSymbol) return false;
+	if (!DATE_KEY_PATTERN.test(date) || !DATE_KEY_PATTERN.test(plan.startDate) || date < plan.startDate) return false;
 	return !plan.endDate || date <= plan.endDate;
 }
 
@@ -123,141 +117,71 @@ export function validateTradeForm(
 	journalType: TradeJournalType,
 	tr: Translator,
 	planOptions: TradePlanOption[],
+	usesExecutionLifecycle = journalType === 'live',
 ): string | null {
-	if (!normalizeSymbol(form.symbol)) {
-		return tr('error.symbolRequired');
+	if (!normalizeSymbol(form.symbol)) return tr('error.symbolRequired');
+	if (!form.timeframe) return tr('error.timeframeRequired');
+	if (!form.setupId || !form.setup.trim()) return tr('error.setupRequired');
+
+	if (!usesExecutionLifecycle) {
+		const rr = Number(form.rr);
+		if (journalType === 'backtest' && !Number.isFinite(rr)) return tr('error.rrNumber');
 	}
 
-	if (!form.timeframe) {
-		return tr('error.timeframeRequired');
-	}
-
-	if (!form.setupId || !form.setup.trim()) {
-		return tr('error.setupRequired');
-	}
-
-	const rr = Number(form.rr);
-	if (journalType === 'backtest' && !Number.isFinite(rr)) {
-		return tr('error.rrNumber');
-	}
-
-	if (form.accountEquity.trim() && !isPositiveNumber(form.accountEquity)) {
-		return 'سرمایه حساب باید یک عدد بزرگ‌تر از صفر باشد.';
-	}
-	if (form.riskPct.trim() && !isPositiveNumber(form.riskPct)) {
-		return 'درصد ریسک باید یک عدد بزرگ‌تر از صفر باشد.';
-	}
-	if (form.positionSize.trim() && !isPositiveNumber(form.positionSize)) {
-		return 'حجم معامله باید یک عدد بزرگ‌تر از صفر باشد.';
-	}
+	if (form.accountEquity.trim() && !isPositiveNumber(form.accountEquity)) return 'سرمایه حساب باید یک عدد بزرگ‌تر از صفر باشد.';
+	if (form.riskPct.trim() && !isPositiveNumber(form.riskPct)) return 'درصد ریسک باید یک عدد بزرگ‌تر از صفر باشد.';
+	if (form.positionSize.trim() && !isPositiveNumber(form.positionSize)) return 'حجم معامله باید یک عدد بزرگ‌تر از صفر باشد.';
 	if (form.urgeToChase.trim()) {
 		const urge = Number(form.urgeToChase);
-		if (!Number.isFinite(urge) || urge < 0 || urge > 10) {
-			return 'شدت میل به تعقیب قیمت باید بین ۰ تا ۱۰ باشد.';
-		}
+		if (!Number.isFinite(urge) || urge < 0 || urge > 10) return 'شدت میل به تعقیب قیمت باید بین ۰ تا ۱۰ باشد.';
 	}
 
-	if (journalType === 'live') {
+	if (usesExecutionLifecycle) {
 		const isClosed = Boolean(form.closedAt);
 		const entryPrice = parseRequiredNumber(form.entryPrice);
 		const stopLoss = parseRequiredNumber(form.stopLoss);
 		const takeProfit = parseRequiredNumber(form.takeProfit);
-
-		if (entryPrice === null) {
-			return tr('error.entryPriceNumber');
-		}
-
-		if (stopLoss === null) {
-			return tr('error.stopLossNumber');
-		}
-
-		if (takeProfit === null) {
-			return tr('error.takeProfitNumber');
-		}
-
-		if (form.side === 'long' && stopLoss >= entryPrice) {
-			return tr('error.longStopBelow');
-		}
-
-		if (form.side === 'long' && takeProfit <= entryPrice) {
-			return tr('error.longTakeAbove');
-		}
-
-		if (form.side === 'short' && stopLoss <= entryPrice) {
-			return tr('error.shortStopAbove');
-		}
-
-		if (form.side === 'short' && takeProfit >= entryPrice) {
-			return tr('error.shortTakeBelow');
-		}
-
+		if (entryPrice === null) return tr('error.entryPriceNumber');
+		if (stopLoss === null) return tr('error.stopLossNumber');
+		if (takeProfit === null) return tr('error.takeProfitNumber');
+		if (form.side === 'long' && stopLoss >= entryPrice) return tr('error.longStopBelow');
+		if (form.side === 'long' && takeProfit <= entryPrice) return tr('error.longTakeAbove');
+		if (form.side === 'short' && stopLoss <= entryPrice) return tr('error.shortStopAbove');
+		if (form.side === 'short' && takeProfit >= entryPrice) return tr('error.shortTakeBelow');
 		if (isClosed) {
 			const exitPrice = parseRequiredNumber(form.exitPrice);
-			if (exitPrice === null) {
-				return tr('error.exitPriceNumber');
-			}
-
-			if (calculateLiveRr(form.side, form.entryPrice, form.stopLoss, form.exitPrice) === null) {
-				return tr('error.liveRrRisk');
-			}
+			if (exitPrice === null) return tr('error.exitPriceNumber');
+			if (calculateLiveRr(form.side, form.entryPrice, form.stopLoss, form.exitPrice) === null) return tr('error.liveRrRisk');
 		}
 	}
 
-	if (!form.openedAt || (journalType === 'backtest' && !form.closedAt)) {
+	if (!form.openedAt || (!usesExecutionLifecycle && journalType === 'backtest' && !form.closedAt)) {
 		return tr('error.openedClosedRequired');
 	}
-
-	if (form.closedAt && calculateHoldingTime(form.openedAt, form.closedAt) === null) {
-		return tr('error.closedAfterOpened');
-	}
+	if (form.closedAt && calculateHoldingTime(form.openedAt, form.closedAt) === null) return tr('error.closedAfterOpened');
 
 	if (journalType === 'live' && form.planId) {
 		const plan = planOptions.find((option) => option.id === form.planId);
-		if (!plan) {
-			return tr('error.planUnavailable');
-		}
-
-		if (normalizeSymbol(plan.symbol) !== normalizeSymbol(form.symbol)) {
-			return tr('error.planSymbolMismatch');
-		}
-
+		if (!plan) return tr('error.planUnavailable');
+		if (normalizeSymbol(plan.symbol) !== normalizeSymbol(form.symbol)) return tr('error.planSymbolMismatch');
 		const journalDate = getDateTimeDatePart(form.openedAt);
-		if (!isTradePlanOptionCompatible(plan, form.symbol, journalDate)) {
-			return tr('error.planDateMismatch');
-		}
+		if (!isTradePlanOptionCompatible(plan, form.symbol, journalDate)) return tr('error.planDateMismatch');
 	}
-
 	return null;
 }
 
-export function calculateLiveRr(
-	side: TradeSide,
-	entryPrice: string,
-	stopLoss: string,
-	targetPrice: string,
-): number | null {
+export function calculateLiveRr(side: TradeSide, entryPrice: string, stopLoss: string, targetPrice: string): number | null {
 	const entry = parseRequiredNumber(entryPrice);
 	const stop = parseRequiredNumber(stopLoss);
 	const target = parseRequiredNumber(targetPrice);
-	if (entry === null || stop === null || target === null) {
-		return null;
-	}
-
+	if (entry === null || stop === null || target === null) return null;
 	const risk = side === 'short' ? stop - entry : entry - stop;
-	if (risk <= 0) {
-		return null;
-	}
-
+	if (risk <= 0) return null;
 	const priceMove = side === 'short' ? entry - target : target - entry;
 	return roundNumber(priceMove / risk);
 }
 
-export function calculateTargetPriceForRr(
-	side: TradeSide,
-	entryPrice: string,
-	stopLoss: string,
-	targetR: number,
-): number | null {
+export function calculateTargetPriceForRr(side: TradeSide, entryPrice: string, stopLoss: string, targetR: number): number | null {
 	const entry = parseRequiredNumber(entryPrice);
 	const stop = parseRequiredNumber(stopLoss);
 	if (entry === null || stop === null || !Number.isFinite(targetR) || targetR <= 0) return null;
@@ -267,14 +191,8 @@ export function calculateTargetPriceForRr(
 }
 
 export function getTradeResultFromRr(rr: number): TradeResult {
-	if (rr > 0) {
-		return 'win';
-	}
-
-	if (rr < 0) {
-		return 'loss';
-	}
-
+	if (rr > 0) return 'win';
+	if (rr < 0) return 'loss';
 	return 'breakeven';
 }
 
@@ -285,9 +203,7 @@ export function formatComputedRr(value: number): string {
 export function calculateRiskAmount(accountEquity: string, riskPct: string): number | null {
 	const equity = Number(accountEquity);
 	const risk = Number(riskPct);
-	if (!Number.isFinite(equity) || equity <= 0 || !Number.isFinite(risk) || risk <= 0) {
-		return null;
-	}
+	if (!Number.isFinite(equity) || equity <= 0 || !Number.isFinite(risk) || risk <= 0) return null;
 	return roundNumber(equity * risk / 100);
 }
 
@@ -306,33 +222,24 @@ function resolveInitialAccountId(plugin: TraderJournalPlugin, initialTrade: Trad
 function normalizePositionUnit(value: unknown): TradePositionUnit {
 	return value === 'contract' || value === 'unit' ? value : 'lot';
 }
-
 function normalizeSession(value: unknown): TradeSession {
 	return value === 'asia' || value === 'london' || value === 'new_york' || value === 'overlap' ? value : 'other';
 }
-
 function normalizePreTradeEmotion(value: unknown): PreTradeEmotion {
 	return value === 'calm' || value === 'activated' ? value : 'neutral';
 }
-
 function isPositiveNumber(value: string): boolean {
 	const parsed = Number(value);
 	return Number.isFinite(parsed) && parsed > 0;
 }
-
 function parseRequiredNumber(value: string): number | null {
-	if (!value.trim()) {
-		return null;
-	}
-
+	if (!value.trim()) return null;
 	const parsed = Number(value);
 	return Number.isFinite(parsed) ? parsed : null;
 }
-
 function roundNumber(value: number): number {
 	return Number(value.toFixed(2));
 }
-
 function roundPrice(value: number): number {
 	return Number(value.toFixed(8));
 }
