@@ -17,7 +17,8 @@ export function normalizeCommitment(value: string): string {
 		normalized = normalized.replace(pattern, replacement);
 	}
 	return normalized
-		.replace(/[\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g, '')
+		.replace(/\u200C/g, ' ')
+		.replace(/[\u200B\u200D-\u200F\u202A-\u202E\u2060\uFEFF]/g, '')
 		.replace(/[؛;،,.!?؟:«»"'(){}…ـ]/g, ' ')
 		.replaceAll('[', ' ')
 		.replaceAll(']', ' ')
