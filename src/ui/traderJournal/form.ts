@@ -123,9 +123,9 @@ export function validateTradeForm(
 	if (!form.timeframe) return tr('error.timeframeRequired');
 	if (!form.setupId || !form.setup.trim()) return tr('error.setupRequired');
 
-	if (!usesExecutionLifecycle) {
-		const rr = Number(form.rr);
-		if (journalType === 'backtest' && !Number.isFinite(rr)) return tr('error.rrNumber');
+	if (!usesExecutionLifecycle && journalType === 'backtest') {
+		const rr = form.rr.trim() ? Number(form.rr) : Number.NaN;
+		if (!Number.isFinite(rr)) return tr('error.rrNumber');
 	}
 
 	if (form.accountEquity.trim() && !isPositiveNumber(form.accountEquity)) return 'سرمایه حساب باید یک عدد بزرگ‌تر از صفر باشد.';
