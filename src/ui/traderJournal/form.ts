@@ -24,6 +24,7 @@ export interface TradeFormState {
 	symbol: string;
 	planId: string;
 	setupId: string;
+	accountId: string;
 	side: TradeSide;
 	setup: string;
 	timeframe: string;
@@ -52,11 +53,15 @@ export interface TradeFormState {
 export function createInitialTradeForm(
 	plugin: TraderJournalPlugin,
 	initialTrade: TradeEntry | undefined,
+	journalType: TradeJournalType = initialTrade?.journal_type === 'backtest' ? 'backtest' : 'live',
 ): TradeFormState {
+	const accountId = resolveInitialAccountId(plugin, initialTrade, journalType);
+	const account = plugin.settings.accounts.find((item) => item.id === accountId);
 	return {
 		symbol: stringifyValue(initialTrade?.symbol) || plugin.settings.symbols[0] || '',
 		planId: stringifyValue(initialTrade?.plan_id),
 		setupId: stringifyValue(initialTrade?.setup_id),
+		accountId,
 		side: initialTrade?.side === 'short' ? 'short' : 'long',
 		setup: stringifyValue(initialTrade?.setup),
 		timeframe: stringifyValue(initialTrade?.timeframe) || plugin.settings.timeframes[0] || '',
@@ -67,7 +72,7 @@ export function createInitialTradeForm(
 		stopLoss: stringifyValue(initialTrade?.stop_loss),
 		exitPrice: stringifyValue(initialTrade?.exit_price),
 		takeProfit: stringifyValue(initialTrade?.take_profit),
-		accountEquity: stringifyValue(initialTrade?.account_equity),
+		accountEquity: stringifyValue(initialTrade?.account_equity) || (account ? String(account.currentBalance) : ''),
 		riskPct: stringifyValue(initialTrade?.risk_pct ?? initialTrade?.khan_approved_risk_pct ?? initialTrade?.khan_risk_pct),
 		positionSize: stringifyValue(initialTrade?.position_size),
 		positionUnit: normalizePositionUnit(initialTrade?.position_unit),
@@ -247,6 +252,20 @@ export function calculateLiveRr(
 	return roundNumber(priceMove / risk);
 }
 
+export function calculateTargetPriceForRr(
+	side: TradeSide,
+	entryPrice: string,
+	stopLoss: string,
+	targetR: number,
+): number | null {
+	const entry = parseRequiredNumber(entryPrice);
+	const stop = parseRequiredNumber(stopLoss);
+	if (entry === null || stop === null || !Number.isFinite(targetR) || targetR <= 0) return null;
+	const risk = side === 'short' ? stop - entry : entry - stop;
+	if (risk <= 0) return null;
+	return roundPrice(side === 'short' ? entry - risk * targetR : entry + risk * targetR);
+}
+
 export function getTradeResultFromRr(rr: number): TradeResult {
 	if (rr > 0) {
 		return 'win';
@@ -270,6 +289,18 @@ export function calculateRiskAmount(accountEquity: string, riskPct: string): num
 		return null;
 	}
 	return roundNumber(equity * risk / 100);
+}
+
+function resolveInitialAccountId(plugin: TraderJournalPlugin, initialTrade: TradeEntry | undefined, journalType: TradeJournalType): string {
+	const historicalId = stringifyValue(initialTrade?.account_id);
+	if (historicalId && plugin.settings.accounts.some((account) => account.id === historicalId)) return historicalId;
+	const compatible = (id: string) => {
+		const account = plugin.settings.accounts.find((item) => item.id === id && item.enabled);
+		if (!account) return false;
+		return journalType === 'backtest' ? account.type === 'backtest' : account.type !== 'backtest';
+	};
+	if (compatible(plugin.settings.lastSelectedAccountId)) return plugin.settings.lastSelectedAccountId;
+	return plugin.settings.accounts.find((account) => account.enabled && (journalType === 'backtest' ? account.type === 'backtest' : account.type !== 'backtest'))?.id ?? '';
 }
 
 function normalizePositionUnit(value: unknown): TradePositionUnit {
@@ -300,4 +331,8 @@ function parseRequiredNumber(value: string): number | null {
 
 function roundNumber(value: number): number {
 	return Number(value.toFixed(2));
+}
+
+function roundPrice(value: number): number {
+	return Number(value.toFixed(8));
 }
