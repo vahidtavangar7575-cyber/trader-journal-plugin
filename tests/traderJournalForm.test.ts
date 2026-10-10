@@ -4,6 +4,7 @@ import type { TradePlanOption } from '../src/plans/types';
 import type { Translator } from '../src/i18n';
 import {
 	calculateLiveRr,
+	calculateTargetPriceForRr,
 	formatTradeTagsInput,
 	isTradePlanOptionCompatible,
 	parseTradeTags,
@@ -56,6 +57,12 @@ void test('accepts live prices with precision greater than two decimal places', 
 	assert.equal(calculateLiveRr('long', form.entryPrice, form.stopLoss, form.takeProfit), 2);
 });
 
+void test('calculates configurable target price from entry and stop', () => {
+	assert.equal(calculateTargetPriceForRr('long', '100', '99', 2), 102);
+	assert.equal(calculateTargetPriceForRr('short', '100', '101', 2), 98);
+	assert.equal(calculateTargetPriceForRr('long', '100', '101', 2), null);
+});
+
 void test('rejects unavailable, cross-symbol, and out-of-range plans', () => {
 	const form = createLiveForm({ planId: 'plan-1' });
 	assert.equal(validateTradeForm(form, 'live', translateKey, []), 'error.planUnavailable');
@@ -89,6 +96,7 @@ function createLiveForm(overrides: Partial<TradeFormState> = {}): TradeFormState
 		symbol: 'NQ',
 		planId: '',
 		setupId: 'setup-1',
+		accountId: '',
 		side: 'long',
 		setup: 'Breakout',
 		timeframe: '5m',
