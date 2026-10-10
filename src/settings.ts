@@ -1,5 +1,8 @@
 import { ECONOMIC_IMPACTS } from './economicCalendar/types';
 import type { EconomicImpact } from './economicCalendar/types';
+import type { TradingAccount, TradingAccountType } from './accounts/types';
+import { DEFAULT_RISK_POLICY, normalizeRiskPolicy } from './risk/policy';
+import type { RiskPolicySettings } from './risk/policy';
 
 export type CalendarDisplayMode = 'month' | 'horizontal_calendar';
 export type TraderJournalLanguage = 'en' | 'vi' | 'fa';
@@ -25,6 +28,9 @@ export interface TraderJournalSettings {
 	economicCalendarTimeZone: string;
 	economicCalendarCountries: string[];
 	economicCalendarImpacts: EconomicImpact[];
+	accounts: TradingAccount[];
+	lastSelectedAccountId: string;
+	riskPolicy: RiskPolicySettings;
 }
 
 export const DEFAULT_SETTINGS: TraderJournalSettings = {
@@ -43,9 +49,17 @@ export const DEFAULT_SETTINGS: TraderJournalSettings = {
 	economicCalendarTimeZone: DEFAULT_ECONOMIC_CALENDAR_TIME_ZONE,
 	economicCalendarCountries: ['USD'],
 	economicCalendarImpacts: ['High', 'Medium'],
+	accounts: [],
+	lastSelectedAccountId: '',
+	riskPolicy: { ...DEFAULT_RISK_POLICY },
 };
 
 export function normalizeSettings(settings: Partial<TraderJournalSettings> | null | undefined): TraderJournalSettings {
+	const accounts = normalizeAccounts(settings?.accounts);
+	const lastSelectedAccountId = typeof settings?.lastSelectedAccountId === 'string' &&
+		accounts.some((account) => account.id === settings.lastSelectedAccountId)
+		? settings.lastSelectedAccountId
+		: '';
 	return {
 		journalFolder: settings?.journalFolder?.trim() || DEFAULT_SETTINGS.journalFolder,
 		liveJournalFolder: settings?.liveJournalFolder?.trim() || DEFAULT_SETTINGS.liveJournalFolder,
@@ -66,6 +80,9 @@ export function normalizeSettings(settings: Partial<TraderJournalSettings> | nul
 			normalizeCountry,
 		),
 		economicCalendarImpacts: normalizeEconomicImpacts(settings?.economicCalendarImpacts),
+		accounts,
+		lastSelectedAccountId,
+		riskPolicy: normalizeRiskPolicy(settings?.riskPolicy),
 	};
 }
 
@@ -124,4 +141,56 @@ function normalizeStringList(
 
 	const uniqueValues = [...new Set(normalizedValues)];
 	return uniqueValues.length ? uniqueValues : [...new Set(fallback.map((value) => normalize(value)).filter(Boolean))];
+}
+
+function normalizeAccounts(value: unknown): TradingAccount[] {
+	if (!Array.isArray(value)) return [];
+	const ids = new Set<string>();
+	const accounts: TradingAccount[] = [];
+	for (const item of value) {
+		if (!isRecord(item)) continue;
+		const id = stringField(item.id);
+		const name = stringField(item.name);
+		const type = normalizeAccountType(item.type);
+		const initialBalance = numberField(item.initialBalance);
+		const currentBalance = numberField(item.currentBalance);
+		if (!id || ids.has(id) || !name || initialBalance === null || initialBalance < 0) continue;
+		ids.add(id);
+		accounts.push({
+			id,
+			name,
+			type,
+			...(stringField(item.code) ? { code: stringField(item.code) } : {}),
+			currency: stringField(item.currency).toUpperCase() || 'USD',
+			initialBalance,
+			currentBalance: currentBalance !== null && currentBalance >= 0 ? currentBalance : initialBalance,
+			enabled: item.enabled !== false,
+			createdAt: validIso(item.createdAt) ?? new Date().toISOString(),
+			updatedAt: validIso(item.updatedAt) ?? new Date().toISOString(),
+		});
+	}
+	return accounts;
+}
+
+function normalizeAccountType(value: unknown): TradingAccountType {
+	return value === 'backtest' || value === 'demo' || value === 'prop' || value === 'competition' || value === 'live'
+		? value
+		: 'demo';
+}
+
+function stringField(value: unknown): string {
+	return typeof value === 'string' ? value.trim() : '';
+}
+
+function numberField(value: unknown): number | null {
+	const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : Number.NaN;
+	return Number.isFinite(parsed) ? parsed : null;
+}
+
+function validIso(value: unknown): string | null {
+	return typeof value === 'string' && !Number.isNaN(Date.parse(value)) ? value : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
