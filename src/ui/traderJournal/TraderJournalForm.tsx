@@ -53,6 +53,9 @@ export function TraderJournalForm({
 	const isLiveJournal = journalType === 'live';
 	const isEditing = Boolean(initialTrade && targetFilePath);
 	const isKhanTrade = Boolean(initialTrade?.khan_setup || form.tags.split(',').some((tag) => tag.trim() === 'khan'));
+	const usesExecutionLifecycle = isLiveJournal || isKhanTrade;
+	const isExecutionTradeClosed = usesExecutionLifecycle && Boolean(form.closedAt);
+
 	const { isLoadingPlans, isLoadingSetups, planOptions, setupOptions } = useTradeReferenceData({
 		form,
 		initialTrade,
@@ -114,21 +117,20 @@ export function TraderJournalForm({
 		}
 	}, [accountRevision, form.accountId, plugin]);
 
-	const isLiveTradeClosed = !isLiveJournal || Boolean(form.closedAt);
 	const holdingTime = useMemo(() => calculateHoldingTime(form.openedAt, form.closedAt), [form.openedAt, form.closedAt]);
-	const liveRr = useMemo(
-		() => calculateLiveRr(
-			form.side,
-			form.entryPrice,
-			form.stopLoss,
-			isLiveTradeClosed ? form.exitPrice : form.takeProfit,
-		),
-		[form.entryPrice, form.exitPrice, form.side, form.stopLoss, form.takeProfit, isLiveTradeClosed],
+	const plannedRr = useMemo(
+		() => usesExecutionLifecycle
+			? calculateLiveRr(form.side, form.entryPrice, form.stopLoss, form.takeProfit)
+			: plugin.settings.riskPolicy.targetR,
+		[form.entryPrice, form.side, form.stopLoss, form.takeProfit, plugin.settings.riskPolicy.targetR, usesExecutionLifecycle],
 	);
-	const plannedRr = isLiveJournal
-		? calculateLiveRr(form.side, form.entryPrice, form.stopLoss, form.takeProfit)
-		: plugin.settings.riskPolicy.targetR;
-	const liveResult = liveRr === null ? null : getTradeResultFromRr(liveRr);
+	const executionRr = useMemo(
+		() => isExecutionTradeClosed
+			? calculateLiveRr(form.side, form.entryPrice, form.stopLoss, form.exitPrice)
+			: null,
+		[form.entryPrice, form.exitPrice, form.side, form.stopLoss, isExecutionTradeClosed],
+	);
+	const executionResult = executionRr === null ? null : getTradeResultFromRr(executionRr);
 	const actualRiskPct = numericValue(form.riskPct);
 	const ruleWarnings = riskEvaluation
 		? buildRiskRuleWarnings(riskEvaluation, actualRiskPct, plannedRr)
@@ -138,23 +140,25 @@ export function TraderJournalForm({
 		beginAttachmentCommit: beginCommit,
 		closeModal,
 		commitAttachments,
+		executionResult,
+		executionRr,
 		failAttachmentCommit: failCommit,
 		form,
 		imageInput,
 		initialTrade,
 		isEditing,
+		isExecutionTradeClosed,
 		isLiveJournal,
-		isLiveTradeClosed,
 		isMounted,
 		journalType,
-		liveResult,
-		liveRr,
+		plannedRr,
 		planOptions,
 		plugin,
 		riskEvaluation,
 		ruleWarnings,
 		setError,
 		targetFilePath,
+		usesExecutionLifecycle,
 	});
 
 	function updateField<K extends keyof TradeFormState>(field: K, value: TradeFormState[K]) {
@@ -171,7 +175,7 @@ export function TraderJournalForm({
 					? ''
 					: currentForm.planId,
 			closedAt:
-				journalType === 'backtest'
+				journalType === 'backtest' && !usesExecutionLifecycle
 					? syncClosedAtDate(openedAt, currentForm.openedAt, currentForm.closedAt)
 					: currentForm.closedAt,
 		}));
@@ -241,14 +245,33 @@ export function TraderJournalForm({
 	const handleSubmit = (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (isSaving || isPastingImage || (isLiveJournal && isLoadingPlans && Boolean(form.planId))) return;
+		if (isKhanTrade && !form.accountId) {
+			setError('برای معامله‌ای که از Wizard خان ساخته شده، ابتدا یک حساب ذخیره‌شده انتخاب کن تا ریسک، موجودی و نتیجه روی همان حساب قابل رهگیری باشد.');
+			return;
+		}
 		void saveTrade();
 	};
+
+	const khanTicketTitle = isEditing
+		? (isExecutionTradeClosed ? 'بستن / بازبینی معامله خان' : 'ویرایش بلیت باز معامله خان')
+		: 'بلیت اجرای معامله خان';
 
 	return (
 		<form className="trader-journal-modal trader-journal-form" onSubmit={handleSubmit}>
 			<div className="trader-journal-form__body">
-			<h2>{isEditing ? tr(isLiveJournal ? 'modal.editLiveTrade' : 'modal.editBacktestTrade') : isLiveJournal ? tr('modal.addLiveTrade') : tr('modal.addBacktestTrade')}</h2>
+			<h2>{isKhanTrade ? khanTicketTitle : isEditing ? tr(isLiveJournal ? 'modal.editLiveTrade' : 'modal.editBacktestTrade') : isLiveJournal ? tr('modal.addLiveTrade') : tr('modal.addBacktestTrade')}</h2>
 			{error ? <div className="trader-journal-form__error">{error}</div> : null}
+
+			{isKhanTrade ? (
+				<section className="trader-journal-review-form trader-journal-khan-ticket-guide">
+					<div className="trader-journal-review-form__header">
+						<h3>{isExecutionTradeClosed ? 'نتیجه را نهایی کن' : 'ترتیب ثبت: حساب ← ریسک واقعی ← Entry/SL/TP ← تصاویر ← ذخیره بلیت باز'}</h3>
+						<p>{isExecutionTradeClosed
+							? 'Exit و زمان خروج را ثبت کن؛ نتیجه و R واقعی از قیمت‌ها محاسبه می‌شود و سپس موجودی همان حساب به‌روز خواهد شد.'
+							: 'نتیجه را الان حدس نزن. بلیت را با اطلاعاتی که در لحظه ورود داری ذخیره کن؛ بعداً از روی همان معامله آن را باز کن و نتیجه واقعی را ثبت کن.'}</p>
+					</div>
+				</section>
+			) : null}
 
 			<TradeAccountFields
 				plugin={plugin}
@@ -265,9 +288,10 @@ export function TraderJournalForm({
 					form={form}
 					isEditing={isEditing}
 					isLiveJournal={isLiveJournal}
-					isLiveTradeClosed={isLiveTradeClosed}
+					usesExecutionLifecycle={usesExecutionLifecycle}
+					isExecutionTradeClosed={isExecutionTradeClosed}
 					isLoadingPlans={isLoadingPlans}
-					liveResult={liveResult}
+					executionResult={executionResult}
 					planOptions={planOptions}
 					symbols={plugin.settings.symbols}
 					timeframes={plugin.settings.timeframes}
@@ -282,9 +306,10 @@ export function TraderJournalForm({
 					form={form}
 					holdingTime={holdingTime}
 					isEditing={isEditing}
-					isLiveJournal={isLiveJournal}
-					isLiveTradeClosed={isLiveTradeClosed}
-					liveRr={liveRr}
+					usesExecutionLifecycle={usesExecutionLifecycle}
+					isExecutionTradeClosed={isExecutionTradeClosed}
+					executionRr={executionRr}
+					plannedRr={plannedRr}
 					targetR={plugin.settings.riskPolicy.targetR}
 					tr={tr}
 					onClosedAtChange={(value) => updateField('closedAt', value)}
@@ -303,6 +328,8 @@ export function TraderJournalForm({
 
 			<TradeRiskPsychologyFields
 				form={form}
+				accountLinked={Boolean(selectedAccount)}
+				recommendedRiskPct={riskEvaluation?.recommendedRiskPct ?? null}
 				onAccountEquityChange={(value) => updateField('accountEquity', value)}
 				onRiskPctChange={(value) => { setRiskAuto(false); updateField('riskPct', value); }}
 				onPositionSizeChange={(value) => updateField('positionSize', value)}
@@ -319,7 +346,7 @@ export function TraderJournalForm({
 					<ol>
 						<li><b>قبل از ورود — M15/HTF:</b> ساختار، POI، نقدینگی هدف، PDH/PDL یا Session context را کامل نشان بده.</li>
 						<li><b>قبل از ورود — M1/LTF:</b> IDM/CHOCH/Flip/OF/SCOB، محل Entry، SL و Target را نشان بده.</li>
-						<li><b>بعد از خروج — M1/LTF:</b> نقطه اجرای واقعی و علت خروج را ثبت کن.</li>
+						<li><b>بعد از خروج — M1/LTF:</b> هنگام نهایی‌کردن نتیجه، نقطه اجرای واقعی و علت خروج را اضافه کن.</li>
 						<li><b>بعد از معامله — M15/HTF:</b> اختیاری ولی توصیه‌شده؛ نشان بده سناریوی بزرگ‌تر چگونه تمام شد.</li>
 					</ol>
 				</section>
@@ -333,7 +360,7 @@ export function TraderJournalForm({
 				<textarea value={form.notes} rows={4} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => updateField('notes', event.target.value)} />
 			</label>
 
-			{isLiveJournal && isLiveTradeClosed ? <TradeReviewFields value={form.review} onChange={(review) => updateField('review', review)} tr={tr} /> : null}
+			{usesExecutionLifecycle && isExecutionTradeClosed ? <TradeReviewFields value={form.review} onChange={(review) => updateField('review', review)} tr={tr} /> : null}
 			</div>
 
 			<TradeFormActions

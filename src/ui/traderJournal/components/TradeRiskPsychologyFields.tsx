@@ -4,6 +4,8 @@ import { calculateRiskAmount } from '../form';
 
 interface Props {
 	form: TradeFormState;
+	accountLinked: boolean;
+	recommendedRiskPct: number | null;
 	onAccountEquityChange: (value: string) => void;
 	onRiskPctChange: (value: string) => void;
 	onPositionSizeChange: (value: string) => void;
@@ -16,6 +18,8 @@ interface Props {
 
 export function TradeRiskPsychologyFields({
 	form,
+	accountLinked,
+	recommendedRiskPct,
 	onAccountEquityChange,
 	onRiskPctChange,
 	onPositionSizeChange,
@@ -32,23 +36,24 @@ export function TradeRiskPsychologyFields({
 	return (
 		<section className="trader-journal-review-form">
 			<div className="trader-journal-review-form__header">
-				<h3>ریسک، حجم و وضعیت ذهنی قبل از معامله</h3>
-				<p>هدف این بخش قضاوت‌کردن نیست؛ می‌خواهیم بعداً بفهمیم کدام شرایط تصمیم‌های خوب یا بد را ساخته‌اند.</p>
+				<h3>ریسک واقعی، حجم و وضعیت ذهنی قبل از معامله</h3>
+				<p>عدد پیشنهادی سیستم حکم نیست؛ عددی که واقعاً با آن وارد می‌شوی/شدی را اینجا ثبت کن تا بعداً انضباط واقعی قابل اندازه‌گیری باشد.</p>
 			</div>
 
 			<div className="trader-journal-form__grid">
 				<label className="trader-journal-field">
-					<span>سرمایه / Equity</span>
+					<span>{accountLinked ? 'سرمایه / Equity حساب ذخیره‌شده' : 'سرمایه / Equity'}</span>
 					<input type="number" min="0" step="any" value={form.accountEquity} placeholder="10000"
+						disabled={accountLinked}
 						onChange={(event: ChangeEvent<HTMLInputElement>) => onAccountEquityChange(event.target.value)} />
 				</label>
 				<label className="trader-journal-field">
-					<span>ریسک این معامله %</span>
+					<span>ریسک واقعی این معامله % {recommendedRiskPct !== null ? `(پیشنهاد سیستم: ${formatPct(recommendedRiskPct)}%)` : ''}</span>
 					<input type="number" min="0" step="0.01" value={form.riskPct} placeholder="0.2"
 						onChange={(event: ChangeEvent<HTMLInputElement>) => onRiskPctChange(event.target.value)} />
 				</label>
 				<div className="trader-journal-field trader-journal-field--readonly">
-					<span>مبلغ ریسک</span>
+					<span>مبلغ ریسک واقعی</span>
 					<strong>{riskAmount === null ? '-' : new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(riskAmount)}</strong>
 				</div>
 				<label className="trader-journal-field">
@@ -78,9 +83,9 @@ export function TradeRiskPsychologyFields({
 
 			<div className="trader-journal-form__grid">
 				<label className="trader-journal-field">
-					<span>وقتی پای چارت نشستی قیمت کجا بود؟</span>
+					<span>موقعیت بازار هنگام تصمیم (اختیاری؛ روی تشخیص ستاپ اثر ندارد)</span>
 					<select value={form.marketArrivalContext} onChange={(event) => onMarketArrivalContextChange(event.target.value)}>
-						<option value="">انتخاب کن</option>
+						<option value="">ثبت نکن</option>
 						<option value="approaching-poi">در مسیر POI</option>
 						<option value="at-poi">داخل/روی POI</option>
 						<option value="after-poi">بعد از واکنش POI</option>
@@ -103,11 +108,11 @@ export function TradeRiskPsychologyFields({
 				</label>
 			</div>
 
-			{showChaseWarning ? (
-				<div className="trader-journal-form__error">
-					میل به تعقیب قیمت بالاست. قبل از ورود دوباره بررسی کن آیا Trigger هنوز معتبر است یا فقط از حرکت از دست‌رفته ناراحت شده‌ای.
-				</div>
-			) : null}
+			{showChaseWarning ? <div className="trader-journal-form__error">میل به تعقیب قیمت بالاست. قبل از ورود دوباره بررسی کن آیا Trigger هنوز معتبر است یا فقط از حرکت از دست‌رفته ناراحت شده‌ای.</div> : null}
 		</section>
 	);
+}
+
+function formatPct(value: number): string {
+	return Number(value.toFixed(4)).toString();
 }

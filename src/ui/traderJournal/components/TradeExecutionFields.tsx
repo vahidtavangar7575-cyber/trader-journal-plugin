@@ -8,9 +8,10 @@ interface TradeExecutionFieldsProps {
 	form: TradeFormState;
 	holdingTime: number | null;
 	isEditing: boolean;
-	isLiveJournal: boolean;
-	isLiveTradeClosed: boolean;
-	liveRr: number | null;
+	usesExecutionLifecycle: boolean;
+	isExecutionTradeClosed: boolean;
+	executionRr: number | null;
+	plannedRr: number | null;
 	targetR: number;
 	tr: Translator;
 	onClosedAtChange: (value: string) => void;
@@ -27,9 +28,10 @@ export function TradeExecutionFields({
 	form,
 	holdingTime,
 	isEditing,
-	isLiveJournal,
-	isLiveTradeClosed,
-	liveRr,
+	usesExecutionLifecycle,
+	isExecutionTradeClosed,
+	executionRr,
+	plannedRr,
 	targetR,
 	tr,
 	onClosedAtChange,
@@ -44,8 +46,8 @@ export function TradeExecutionFields({
 	return (
 		<>
 			<label className="trader-journal-field">
-				<span>{isLiveJournal ? tr('detail.entryPrice') : tr('detail.rr')}</span>
-				{isLiveJournal ? (
+				<span>{usesExecutionLifecycle ? tr('detail.entryPrice') : tr('detail.rr')}</span>
+				{usesExecutionLifecycle ? (
 					<input type="number" step="any" value={form.entryPrice} placeholder="100"
 						onChange={(event: ChangeEvent<HTMLInputElement>) => onEntryPriceChange(event.target.value)} required />
 				) : (
@@ -54,7 +56,7 @@ export function TradeExecutionFields({
 				)}
 			</label>
 
-			{isLiveJournal ? (
+			{usesExecutionLifecycle ? (
 				<>
 					<label className="trader-journal-field">
 						<span>{tr('detail.stopLoss')}</span>
@@ -62,11 +64,11 @@ export function TradeExecutionFields({
 							onChange={(event: ChangeEvent<HTMLInputElement>) => onStopLossChange(event.target.value)} required />
 					</label>
 					<label className="trader-journal-field">
-						<span>{tr('detail.exitPrice')}</span>
+						<span>{tr('detail.exitPrice')} · فقط هنگام بستن معامله</span>
 						<input type="number" step="any" value={form.exitPrice} placeholder="102"
-							disabled={!isLiveTradeClosed}
+							disabled={!isExecutionTradeClosed}
 							onChange={(event: ChangeEvent<HTMLInputElement>) => onExitPriceChange(event.target.value)}
-							required={isLiveTradeClosed} />
+							required={isExecutionTradeClosed} />
 					</label>
 					<label className="trader-journal-field">
 						<span>{tr('detail.takeProfit')} · هدف فعلی {formatComputedRr(targetR)}R</span>
@@ -86,20 +88,26 @@ export function TradeExecutionFields({
 					disabled={isEditing} required />
 			</label>
 			<label className="trader-journal-field">
-				<span>{tr('detail.closedAt')}</span>
+				<span>{usesExecutionLifecycle ? `${tr('detail.closedAt')} · تا وقتی نتیجه مشخص نشده خالی بگذار` : tr('detail.closedAt')}</span>
 				<input type="datetime-local" value={form.closedAt}
 					onChange={(event: ChangeEvent<HTMLInputElement>) => onClosedAtChange(event.target.value)}
-					required={!isLiveJournal} />
+					required={!usesExecutionLifecycle} />
 			</label>
 			<div className="trader-journal-field trader-journal-field--readonly">
 				<span>{tr('detail.holdingTime')}</span>
 				<strong>{formatDuration(holdingTime) || '-'}</strong>
 			</div>
-			{isLiveJournal ? (
-				<div className="trader-journal-field trader-journal-field--readonly">
-					<span>RR</span>
-					<strong>{liveRr === null ? '-' : `${formatComputedRr(liveRr)}R`}</strong>
-				</div>
+			{usesExecutionLifecycle ? (
+				<>
+					<div className="trader-journal-field trader-journal-field--readonly">
+						<span>RR برنامه‌ریزی‌شده</span>
+						<strong>{plannedRr === null ? '-' : `${formatComputedRr(plannedRr)}R`}</strong>
+					</div>
+					<div className="trader-journal-field trader-journal-field--readonly">
+						<span>RR واقعی</span>
+						<strong>{!isExecutionTradeClosed || executionRr === null ? '-' : `${formatComputedRr(executionRr)}R`}</strong>
+					</div>
+				</>
 			) : null}
 		</>
 	);
