@@ -55,6 +55,7 @@ export interface TradeEntry {
 	setup?: string;
 	timeframe?: string;
 	result?: TradeResult;
+	planned_rr?: number | string;
 	rr?: number | string;
 	tags?: string[] | string;
 	entry_price?: number | string;
