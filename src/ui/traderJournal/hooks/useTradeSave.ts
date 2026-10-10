@@ -41,23 +41,25 @@ interface UseTradeSaveArgs {
 	beginAttachmentCommit: () => void;
 	closeModal: () => void;
 	commitAttachments: () => void;
+	executionResult: TradeResult | null;
+	executionRr: number | null;
 	failAttachmentCommit: () => Promise<void>;
 	form: TradeFormState;
 	imageInput: string;
 	initialTrade: TradeEntry | undefined;
 	isEditing: boolean;
+	isExecutionTradeClosed: boolean;
 	isLiveJournal: boolean;
-	isLiveTradeClosed: boolean;
 	isMounted: () => boolean;
 	journalType: TradeJournalType;
-	liveResult: TradeResult | null;
-	liveRr: number | null;
+	plannedRr: number | null;
 	planOptions: TradePlanOption[];
 	plugin: TraderJournalPlugin;
 	riskEvaluation: RiskPolicyEvaluation | null;
 	ruleWarnings: string[];
 	setError: (error: string) => void;
 	targetFilePath: string | undefined;
+	usesExecutionLifecycle: boolean;
 }
 
 interface TradeSaveController {
@@ -69,61 +71,63 @@ export function useTradeSave({
 	beginAttachmentCommit,
 	closeModal,
 	commitAttachments,
+	executionResult,
+	executionRr,
 	failAttachmentCommit,
 	form,
 	imageInput,
 	initialTrade,
 	isEditing,
+	isExecutionTradeClosed,
 	isLiveJournal,
-	isLiveTradeClosed,
 	isMounted,
 	journalType,
-	liveResult,
-	liveRr,
+	plannedRr,
 	planOptions,
 	plugin,
 	riskEvaluation,
 	ruleWarnings,
 	setError,
 	targetFilePath,
+	usesExecutionLifecycle,
 }: UseTradeSaveArgs): TradeSaveController {
 	const [isSaving, setIsSaving] = useState(false);
 	const tradeIdRef = useRef(stringifyValue(initialTrade?.id));
 	const tr = getTranslator(plugin.settings.language);
 
 	async function saveTrade() {
-		const validationError = validateTradeForm(form, journalType, tr, planOptions);
+		const validationError = validateTradeForm(form, journalType, tr, planOptions, usesExecutionLifecycle);
 		if (validationError) {
 			setError(validationError);
+			return;
+		}
+
+		if (usesExecutionLifecycle && isExecutionTradeClosed && (executionRr === null || executionResult === null)) {
+			setError('برای بستن معامله، Exit باید نسبت به Entry و Stop Loss یک R معتبر بسازد.');
 			return;
 		}
 
 		const symbol = normalizeSymbol(form.symbol);
 		const openedAt = toLocalIsoString(form.openedAt);
 		const journalDate = getDateTimeDatePart(form.openedAt) || getTodayDateInput();
-		const closedAt = isLiveTradeClosed ? toLocalIsoString(form.closedAt) : '';
-		const rr = isLiveJournal ? liveRr : Number(form.rr);
-		if (rr === null) {
-			setError(tr('error.liveRrRisk'));
-			return;
-		}
+		const closedAt = isExecutionTradeClosed || !usesExecutionLifecycle ? toLocalIsoString(form.closedAt) : '';
+		if (!tradeIdRef.current) tradeIdRef.current = createTradeId(symbol, openedAt, journalDate);
 
-		if (!tradeIdRef.current) {
-			tradeIdRef.current = createTradeId(symbol, openedAt, journalDate);
-		}
 		const baseTrade = createTradeEntry({
+			closedAt,
+			executionResult,
+			executionRr,
 			form,
 			imageInput,
 			initialTrade,
+			isExecutionTradeClosed,
 			isLiveJournal,
-			isLiveTradeClosed,
 			journalType,
-			liveResult,
 			openedAt,
-			closedAt,
-			rr,
+			plannedRr,
 			symbol,
 			tradeId: tradeIdRef.current,
+			usesExecutionLifecycle,
 		});
 		const ledger = previewAccountLedger(plugin.settings.accounts, initialTrade, baseTrade);
 		const trade = attachRiskPolicyMetadata(ledger.trade, riskEvaluation, ruleWarnings);
@@ -185,17 +189,19 @@ export function useTradeSave({
 
 interface CreateTradeEntryArgs {
 	closedAt: string;
+	executionResult: TradeResult | null;
+	executionRr: number | null;
 	form: TradeFormState;
 	imageInput: string;
 	initialTrade: TradeEntry | undefined;
+	isExecutionTradeClosed: boolean;
 	isLiveJournal: boolean;
-	isLiveTradeClosed: boolean;
 	journalType: TradeJournalType;
-	liveResult: TradeResult | null;
 	openedAt: string;
-	rr: number;
+	plannedRr: number | null;
 	symbol: string;
 	tradeId: string;
+	usesExecutionLifecycle: boolean;
 }
 
 function createTradeEntry(args: CreateTradeEntryArgs): TradeEntry {
@@ -215,8 +221,8 @@ function createTradeEntry(args: CreateTradeEntryArgs): TradeEntry {
 		setup_id: form.setupId || undefined,
 		setup: form.setup.trim(),
 		timeframe: form.timeframe,
-		rr: args.rr,
 		images,
+		tags: parseTradeTags(form.tags),
 		notes: form.notes.trim(),
 		opened_at: args.openedAt,
 		...(form.accountId ? { account_id: form.accountId } : {}),
@@ -231,27 +237,29 @@ function createTradeEntry(args: CreateTradeEntryArgs): TradeEntry {
 		...(form.urgeToChase.trim() ? { urge_to_chase: Number(form.urgeToChase) } : {}),
 	};
 	copyKhanTradeMetadata(args.initialTrade, trade);
-
 	if (args.isLiveJournal && form.planId) trade.plan_id = form.planId;
-	if (!args.isLiveJournal) {
-		trade.result = form.result;
-		trade.closed_at = args.closedAt;
-		trade.holding_time = calculateHoldingTime(args.openedAt, args.closedAt);
-		trade.tags = parseTradeTags(form.tags);
+
+	if (args.usesExecutionLifecycle) {
+		trade.status = args.isExecutionTradeClosed ? 'closed' : 'open';
+		trade.entry_price = Number(form.entryPrice);
+		trade.stop_loss = Number(form.stopLoss);
+		trade.take_profit = Number(form.takeProfit);
+		if (args.plannedRr !== null) trade.planned_rr = args.plannedRr;
+		if (args.isExecutionTradeClosed && args.executionResult && args.executionRr !== null) {
+			trade.result = args.executionResult;
+			trade.rr = args.executionRr;
+			trade.closed_at = args.closedAt;
+			trade.exit_price = Number(form.exitPrice);
+			trade.holding_time = calculateHoldingTime(args.openedAt, args.closedAt);
+			trade.review = buildTradeReview(form.review, getCurrentLocalIsoString());
+		}
 		return trade;
 	}
 
-	trade.status = args.isLiveTradeClosed ? 'closed' : 'open';
-	trade.entry_price = Number(form.entryPrice);
-	trade.stop_loss = Number(form.stopLoss);
-	trade.take_profit = Number(form.takeProfit);
-	if (args.isLiveTradeClosed && args.liveResult) {
-		trade.result = args.liveResult;
-		trade.closed_at = args.closedAt;
-		trade.exit_price = Number(form.exitPrice);
-		trade.holding_time = calculateHoldingTime(args.openedAt, args.closedAt);
-	}
-	if (args.isLiveTradeClosed) trade.review = buildTradeReview(form.review, getCurrentLocalIsoString());
+	trade.result = form.result;
+	trade.rr = Number(form.rr);
+	trade.closed_at = args.closedAt;
+	trade.holding_time = calculateHoldingTime(args.openedAt, args.closedAt);
 	return trade;
 }
 
