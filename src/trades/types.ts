@@ -63,7 +63,7 @@ export interface TradeEntry {
 	take_profit?: number | string;
 	account_id?: string;
 	account_name?: string;
-	account_type?: TradeAccountType | string;
+	account_type?: TradeAccountType;
 	account_code?: string;
 	account_currency?: string;
 	account_equity?: number | string;
