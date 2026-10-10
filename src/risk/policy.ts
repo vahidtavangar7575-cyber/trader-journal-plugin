@@ -112,9 +112,6 @@ export function evaluateRiskPolicy({
 	if (managed && tradeNumber === 3 && policyRiskPct <= 0) {
 		warnings.push('سود خالص دو معامله اول مثبت نیست؛ برای معامله سوم ریسک پیشنهادی برنامه صفر است.');
 	}
-	if (!managed && account?.type === 'backtest') {
-		warnings.push('حساب بک‌تست تمرینی است؛ محدودیت تعداد معاملات و توقف بعد از دو باخت روی آن اعمال نمی‌شود.');
-	}
 
 	return {
 		tradeNumber,
