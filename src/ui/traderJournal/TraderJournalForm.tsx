@@ -26,6 +26,7 @@ import { TradeImageFields } from './components/TradeImageFields';
 import { TradeRiskPsychologyFields } from './components/TradeRiskPsychologyFields';
 import { TradeSetupFields } from './components/TradeSetupFields';
 import { useTradeAttachments } from './hooks/useTradeAttachments';
+import { useFxPositionSizing } from './hooks/useFxPositionSizing';
 import { useTradeReferenceData } from './hooks/useTradeReferenceData';
 import { useTradeSave } from './hooks/useTradeSave';
 
@@ -83,6 +84,7 @@ export function TraderJournalForm({
 		() => plugin.settings.accounts.find((account) => account.id === form.accountId) ?? null,
 		[accountRevision, form.accountId, plugin],
 	);
+	const fxSizing = useFxPositionSizing({ plugin, form, selectedAccount, setForm });
 	const allTrades = useMemo(() => {
 		void journalRevision;
 		return Object.values(plugin.journalDataService.getSnapshot().trades.daysByDate)
@@ -330,6 +332,15 @@ export function TraderJournalForm({
 				form={form}
 				accountLinked={Boolean(selectedAccount)}
 				recommendedRiskPct={riskEvaluation?.recommendedRiskPct ?? null}
+				fxSizingResult={fxSizing.result}
+				fxSizingLoading={fxSizing.isLoading}
+				fxSizingError={fxSizing.error}
+				fxOnlineEnabled={fxSizing.onlineEnabled}
+				fxApiKey={fxSizing.apiKey}
+				fxLotStep={fxSizing.lotStep}
+				onFxOnlineEnabledChange={fxSizing.setOnlineEnabled}
+				onFxApiKeyChange={fxSizing.setApiKey}
+				onFxLotStepChange={fxSizing.setLotStep}
 				onAccountEquityChange={(value) => updateField('accountEquity', value)}
 				onRiskPctChange={(value) => { setRiskAuto(false); updateField('riskPct', value); }}
 				onPositionSizeChange={(value) => updateField('positionSize', value)}
