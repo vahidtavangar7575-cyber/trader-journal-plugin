@@ -10,10 +10,15 @@ import {
 	getKhanDecisionResult,
 	validateKhanRuleGraph,
 } from '../src/khan/engine';
+import { validatePresentationAlignment } from '../src/khan/presentationAudit';
 import type { KhanDecisionSnapshot, KhanSetupId } from '../src/khan/types';
 
 void test('Khan rule graph has no missing targets', () => {
 	assert.deepEqual(validateKhanRuleGraph(), []);
+});
+
+void test('Khan decision targets and risk endpoints match the actual 58-page Presentation hyperlinks', () => {
+	assert.deepEqual(validatePresentationAlignment(), []);
 });
 
 void test('all six setups can be opened directly at their source start page', () => {
@@ -110,7 +115,7 @@ void test('Setup 6 maps decisional/decisional to 0.1 and extreme/extreme to 0.5'
 	assert.equal(extreme?.resultPage, 58);
 });
 
-void test('cross-setup source links update the active setup', () => {
+void test('surprising cross-setup links are preserved because they are explicit in the Presentation', () => {
 	let setup2 = createKhanDecisionSnapshot();
 	setup2 = answerKhanDecision(setup2, 'idm-consumed');
 	setup2 = answerKhanDecision(setup2, 'no');
@@ -122,6 +127,11 @@ void test('cross-setup source links update the active setup', () => {
 	setup6 = answerKhanDecision(setup6, 'yes');
 	assert.equal(setup6.page, 53);
 	assert.equal(setup6.setup, 'setup-6');
+
+	let setup2Bearish = createKhanDecisionSnapshotForSetup('setup-2');
+	setup2Bearish = answerKhanDecision(setup2Bearish, 'bearish');
+	assert.equal(setup2Bearish.page, 16);
+	assert.equal(setup2Bearish.setup, 'setup-2');
 });
 
 void test('Setup 6 no-reaction instruction moves to Setup 1 and back restores the previous state', () => {
