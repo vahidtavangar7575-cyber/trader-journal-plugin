@@ -5,6 +5,7 @@ import { getTranslator } from '../../../i18n';
 import type { TradePlanOption } from '../../../plans/types';
 import { normalizeSymbol } from '../../../settings';
 import { stringifyValue } from '../../../trades/format';
+import { attachPersianTradeReport } from '../../../trades/persianReport';
 import { previewAccountLedger } from '../../../accounts/ledger';
 import type { RiskPolicyEvaluation } from '../../../risk/policy';
 import {
@@ -35,6 +36,10 @@ const KHAN_TRADE_FIELDS = [
 	'khan_result_page',
 	'khan_source_pages',
 	'khan_decision_path',
+	'khan_source_exact',
+	'khan_source_document',
+	'khan_operational_context',
+	'khan_operational_guidance',
 ] as const;
 
 interface UseTradeSaveArgs {
@@ -130,7 +135,7 @@ export function useTradeSave({
 			usesExecutionLifecycle,
 		});
 		const ledger = previewAccountLedger(plugin.settings.accounts, initialTrade, baseTrade);
-		const trade = attachRiskPolicyMetadata(ledger.trade, riskEvaluation, ruleWarnings);
+		const trade = attachPersianTradeReport(attachRiskPolicyMetadata(ledger.trade, riskEvaluation, ruleWarnings));
 
 		const persistLedger = async () => {
 			plugin.settings.accounts = ledger.accounts;
