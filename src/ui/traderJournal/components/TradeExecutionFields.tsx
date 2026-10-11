@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import type { ChangeEvent } from 'react';
 import type { Translator } from '../../../i18n';
+import { calculateExitPriceFromR } from '../../../risk/realizedR';
 import { formatDuration } from '../../../trades/format';
+import { toDateTimeLocalInput } from '../dateTime';
 import { formatComputedRr } from '../form';
 import type { TradeFormState } from '../form';
 
@@ -23,7 +25,6 @@ interface TradeExecutionFieldsProps {
 	onStopLossChange: (value: string) => void;
 	onTakeProfitChange: (value: string) => void;
 	onApplyTargetRr: () => void;
-	onApplyRealizedR: (value: string) => void;
 }
 
 export function TradeExecutionFields({
@@ -44,9 +45,25 @@ export function TradeExecutionFields({
 	onStopLossChange,
 	onTakeProfitChange,
 	onApplyTargetRr,
-	onApplyRealizedR,
 }: TradeExecutionFieldsProps) {
 	const [realizedRInput, setRealizedRInput] = useState('');
+	const [quickCloseError, setQuickCloseError] = useState('');
+	const applyRealizedR = () => {
+		if (!realizedRInput.trim()) {
+			setQuickCloseError('مقدار R را وارد کن.');
+			return;
+		}
+		const realizedR = Number(realizedRInput);
+		const exitPrice = calculateExitPriceFromR(form.side, form.entryPrice, form.stopLoss, realizedR);
+		if (!Number.isFinite(realizedR) || exitPrice === null) {
+			setQuickCloseError('برای بستن با R، Entry و Stop معتبر و مقدار R عددی لازم است.');
+			return;
+		}
+		setQuickCloseError('');
+		onExitPriceChange(String(exitPrice));
+		onClosedAtChange(toDateTimeLocalInput(new Date().toISOString()));
+	};
+
 	return (
 		<>
 			<label className="trader-journal-field">
@@ -88,9 +105,10 @@ export function TradeExecutionFields({
 							<div className="trader-journal-setup-select-row">
 								<input type="number" step="0.01" value={realizedRInput} placeholder="مثلاً 2 یا -1 یا 0.5"
 									onChange={(event: ChangeEvent<HTMLInputElement>) => setRealizedRInput(event.target.value)} />
-								<button type="button" className="mod-cta" onClick={() => onApplyRealizedR(realizedRInput)}>ثبت نتیجه با R</button>
+								<button type="button" className="mod-cta" onClick={applyRealizedR}>ثبت نتیجه با R</button>
 							</div>
-							<small>مثبت = سود، منفی = زیان، صفر = Breakeven. Exit متناظر از Entry و Stop محاسبه می‌شود تا دفتر حساب و RR واقعی سازگار بماند.</small>
+							<small>مثبت = سود، منفی = زیان، صفر = Breakeven. Exit متناظر از Entry و Stop محاسبه می‌شود و زمان خروج روی همین لحظه قرار می‌گیرد.</small>
+							{quickCloseError ? <small className="trader-journal-form__error">{quickCloseError}</small> : null}
 						</label>
 					) : null}
 				</>
