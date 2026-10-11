@@ -6,6 +6,7 @@ import type { TradeFormState } from '../form';
 
 const SIDE_OPTIONS: TradeSide[] = ['long', 'short'];
 const RESULT_OPTIONS: TradeResult[] = ['loss', 'win', 'breakeven'];
+const FOCUSED_SYMBOLS = ['EURUSD', 'XAUUSD', 'US30', 'DAX40', 'NAS100', 'USOIL', 'BTCUSD'];
 
 interface TradeIdentityFieldsProps {
 	form: TradeFormState;
@@ -44,13 +45,14 @@ export function TradeIdentityFields({
 	onSymbolChange,
 	onTimeframeChange,
 }: TradeIdentityFieldsProps) {
+	const symbolOptions = [...new Set([...FOCUSED_SYMBOLS, ...symbols, form.symbol].filter(Boolean))];
 	return (
 		<>
 			<label className="trader-journal-field">
 				<span>{tr('detail.symbol')}</span>
 				<select value={form.symbol} onChange={(event: ChangeEvent<HTMLSelectElement>) => onSymbolChange(event.target.value)} disabled={isEditing} required>
 					<option value="">{tr('placeholder.selectSymbol')}</option>
-					{symbols.map((symbol) => <option value={symbol} key={symbol}>{symbol}</option>)}
+					{symbolOptions.map((symbol) => <option value={symbol} key={symbol}>{symbol}</option>)}
 				</select>
 			</label>
 
