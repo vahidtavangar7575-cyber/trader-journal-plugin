@@ -1,25 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { SCROLL_SAFETY_CSS } from '../src/ui/scrollSafety';
+import { TRADER_JOURNAL_SCROLL_CONTRACT } from '../src/ui/scrollSafety';
 
-void test('account manager, trade body and Khan cockpit each have a vertical scroll owner', () => {
-  for (const selector of [
-    '.trader-journal-modal-content > .account-manager',
-    '.trader-journal-modal-content > .trader-journal-form > .trader-journal-form__body',
-    '.trader-journal-modal-content > .khan-cockpit',
-  ]) {
-    const start = SCROLL_SAFETY_CSS.indexOf(selector);
-    assert.notEqual(start, -1, `${selector} missing`);
-    const block = SCROLL_SAFETY_CSS.slice(start, SCROLL_SAFETY_CSS.indexOf('}', start) + 1);
-    assert.match(block, /min-height:\s*0\s*!important/);
-    assert.match(block, /overflow-y:\s*auto\s*!important/);
-  }
+void test('modal shell clips outer overflow and stays inside the viewport', () => {
+  assert.equal(TRADER_JOURNAL_SCROLL_CONTRACT.shell.overflow, 'hidden');
+  assert.equal(TRADER_JOURNAL_SCROLL_CONTRACT.shell.minHeight, '0');
+  assert.match(TRADER_JOURNAL_SCROLL_CONTRACT.shell.maxHeight, /100dvh/);
 });
 
-void test('modal content clips overflow so nested scroll owners receive wheel events', () => {
-  const selector = '.trader-journal-modal-shell > .modal-content.trader-journal-modal-content';
-  const start = SCROLL_SAFETY_CSS.indexOf(selector);
-  const block = SCROLL_SAFETY_CSS.slice(start, SCROLL_SAFETY_CSS.indexOf('}', start) + 1);
-  assert.match(block, /min-height:\s*0\s*!important/);
-  assert.match(block, /overflow:\s*hidden\s*!important/);
+void test('modal content is the single reliable vertical scroll owner', () => {
+  assert.equal(TRADER_JOURNAL_SCROLL_CONTRACT.content.minHeight, '0');
+  assert.equal(TRADER_JOURNAL_SCROLL_CONTRACT.content.overflowY, 'auto');
+  assert.equal(TRADER_JOURNAL_SCROLL_CONTRACT.content.overflowX, 'hidden');
+  assert.match(TRADER_JOURNAL_SCROLL_CONTRACT.content.maxHeight, /100dvh/);
 });
