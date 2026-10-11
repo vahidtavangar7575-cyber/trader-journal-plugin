@@ -60,21 +60,23 @@ export function installTraderJournalScrollSafety(): () => void {
 }
 
 function applyScrollContract(shell: HTMLElement): void {
-  applyStyles(shell, TRADER_JOURNAL_SCROLL_CONTRACT.shell);
+  shell.setCssStyles(TRADER_JOURNAL_SCROLL_CONTRACT.shell);
 
   const content = shell.querySelector<HTMLElement>(':scope > .modal-content.trader-journal-modal-content');
   if (!content) return;
-  applyStyles(content, TRADER_JOURNAL_SCROLL_CONTRACT.content);
+  content.setCssStyles(TRADER_JOURNAL_SCROLL_CONTRACT.content);
 
   // The outer .modal-content is the single vertical owner. Nested sections are
   // returned to natural document flow so wheel/trackpad events cannot die in an
   // inner overflow:hidden/max-height combination.
   NATURAL_FLOW_SELECTORS.forEach((selector) => {
     content.querySelectorAll<HTMLElement>(selector).forEach((element) => {
-      element.style.setProperty('max-height', 'none');
-      element.style.setProperty('min-height', '0');
-      element.style.setProperty('overflow-y', 'visible');
-      element.style.setProperty('overflow-x', 'visible');
+      element.setCssStyles({
+        maxHeight: 'none',
+        minHeight: '0',
+        overflowY: 'visible',
+        overflowX: 'visible',
+      });
     });
   });
 
@@ -83,18 +85,10 @@ function applyScrollContract(shell: HTMLElement): void {
   content.querySelectorAll<HTMLElement>(
     '.trader-journal-trade-images, .trader-journal-dashboard-adherence, .trader-journal-image-modal-frame',
   ).forEach((element) => {
-    element.style.setProperty('max-width', '100%');
-    element.style.setProperty('min-width', '0');
-    element.style.setProperty('overflow-x', 'auto');
+    element.setCssStyles({
+      maxWidth: '100%',
+      minWidth: '0',
+      overflowX: 'auto',
+    });
   });
-}
-
-function applyStyles(element: HTMLElement, styles: Readonly<Record<string, string>>): void {
-  Object.entries(styles).forEach(([property, value]) => {
-    element.style.setProperty(toKebabCase(property), value);
-  });
-}
-
-function toKebabCase(value: string): string {
-  return value.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 }
