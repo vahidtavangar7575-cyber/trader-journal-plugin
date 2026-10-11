@@ -1,6 +1,7 @@
 import type TraderJournalPlugin from '../../../main';
 import type { TradingAccount } from '../../../accounts/types';
 import { TRADING_ACCOUNT_TYPE_LABELS } from '../../../accounts/types';
+import { buildRiskRecommendationReasons } from '../../../risk/explanation';
 import type { RiskPolicyEvaluation } from '../../../risk/policy';
 import { AccountManagerModal } from '../../AccountManagerModal';
 
@@ -9,7 +10,6 @@ interface Props {
 	accountId: string;
 	selectedAccount: TradingAccount | null;
 	evaluation: RiskPolicyEvaluation | null;
-	riskReasons: string[];
 	ruleWarnings: string[];
 	onAccountChange: (accountId: string) => void;
 	onAccountsChanged: () => void;
@@ -20,12 +20,22 @@ export function TradeAccountFields({
 	accountId,
 	selectedAccount,
 	evaluation,
-	riskReasons,
 	ruleWarnings,
 	onAccountChange,
 	onAccountsChanged,
 }: Props) {
 	const accounts = plugin.settings.accounts.filter((account) => account.enabled || account.id === accountId);
+	const allTrades = Object.values(plugin.journalDataService.getSnapshot().trades.daysByDate)
+		.flatMap((day) => day.trades.map((entry) => entry.trade));
+	const riskReasons = selectedAccount && evaluation
+		? buildRiskRecommendationReasons({
+			evaluation,
+			policy: plugin.settings.riskPolicy,
+			account: selectedAccount,
+			date: localDateKey(),
+			trades: allTrades,
+		})
+		: [];
 	return (
 		<section className="trader-journal-review-form trader-journal-account-panel">
 			<div className="trader-journal-review-form__header trader-journal-account-panel__header">
@@ -102,6 +112,13 @@ export function TradeAccountFields({
 			))}
 		</section>
 	);
+}
+
+function localDateKey(date = new Date()): string {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
 }
 
 function formatMoney(value: number, currency: string): string {
