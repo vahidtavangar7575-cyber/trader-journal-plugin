@@ -16,7 +16,7 @@ import type TraderJournalPlugin from '../../main';
 import type { Translator } from '../../i18n';
 import { createTradeReviewFormState } from '../TradeReviewFields';
 import type { TradeReviewFormState } from '../TradeReviewFields';
-import { getDateTimeDatePart, toDateTimeLocalInput } from './dateTime';
+import { getCurrentLocalIsoString, getDateTimeDatePart, toDateTimeLocalInput } from './dateTime';
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -57,6 +57,9 @@ export function createInitialTradeForm(
 ): TradeFormState {
 	const accountId = resolveInitialAccountId(plugin, initialTrade, journalType);
 	const account = plugin.settings.accounts.find((item) => item.id === accountId);
+	const usesExecutionLifecycle = journalType === 'live' || Boolean(initialTrade?.khan_setup);
+	const openedAt = stringifyValue(initialTrade?.opened_at) || (usesExecutionLifecycle ? getCurrentLocalIsoString() : '');
+	const closedAt = initialTrade?.status === 'open' ? '' : stringifyValue(initialTrade?.closed_at);
 	return {
 		symbol: stringifyValue(initialTrade?.symbol) || plugin.settings.symbols[0] || '',
 		planId: stringifyValue(initialTrade?.plan_id),
@@ -70,7 +73,7 @@ export function createInitialTradeForm(
 		tags: formatTradeTagsInput(initialTrade?.tags),
 		entryPrice: stringifyValue(initialTrade?.entry_price),
 		stopLoss: stringifyValue(initialTrade?.stop_loss),
-		exitPrice: stringifyValue(initialTrade?.exit_price),
+		exitPrice: initialTrade?.status === 'open' ? '' : stringifyValue(initialTrade?.exit_price),
 		takeProfit: stringifyValue(initialTrade?.take_profit),
 		accountEquity: stringifyValue(initialTrade?.account_equity) || (account ? String(account.currentBalance) : ''),
 		riskPct: stringifyValue(initialTrade?.risk_pct ?? initialTrade?.khan_approved_risk_pct ?? initialTrade?.khan_risk_pct),
@@ -82,8 +85,8 @@ export function createInitialTradeForm(
 		urgeToChase: stringifyValue(initialTrade?.urge_to_chase),
 		images: normalizeTradeImages(initialTrade?.images),
 		notes: stringifyValue(initialTrade?.notes),
-		openedAt: toDateTimeLocalInput(initialTrade?.opened_at),
-		closedAt: toDateTimeLocalInput(initialTrade?.closed_at),
+		openedAt: toDateTimeLocalInput(openedAt),
+		closedAt: toDateTimeLocalInput(closedAt),
 		review: createTradeReviewFormState(initialTrade?.review),
 	};
 }
@@ -112,6 +115,10 @@ export function isTradePlanOptionCompatible(
 	return !plan.endDate || date <= plan.endDate;
 }
 
+export function isExecutionFormClosing(form: TradeFormState): boolean {
+	return Boolean(form.closedAt || form.exitPrice);
+}
+
 export function validateTradeForm(
 	form: TradeFormState,
 	journalType: TradeJournalType,
@@ -137,7 +144,7 @@ export function validateTradeForm(
 	}
 
 	if (usesExecutionLifecycle) {
-		const isClosed = Boolean(form.closedAt);
+		const isClosing = isExecutionFormClosing(form);
 		const entryPrice = parseRequiredNumber(form.entryPrice);
 		const stopLoss = parseRequiredNumber(form.stopLoss);
 		const takeProfit = parseRequiredNumber(form.takeProfit);
@@ -148,7 +155,8 @@ export function validateTradeForm(
 		if (form.side === 'long' && takeProfit <= entryPrice) return tr('error.longTakeAbove');
 		if (form.side === 'short' && stopLoss <= entryPrice) return tr('error.shortStopAbove');
 		if (form.side === 'short' && takeProfit >= entryPrice) return tr('error.shortTakeBelow');
-		if (isClosed) {
+		if (isClosing) {
+			if (!form.closedAt) return 'برای ثبت نتیجه، زمان بسته‌شدن معامله را وارد کن.';
 			const exitPrice = parseRequiredNumber(form.exitPrice);
 			if (exitPrice === null) return tr('error.exitPriceNumber');
 			if (calculateLiveRr(form.side, form.entryPrice, form.stopLoss, form.exitPrice) === null) return tr('error.liveRrRisk');

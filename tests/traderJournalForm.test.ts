@@ -6,6 +6,7 @@ import {
 	calculateLiveRr,
 	calculateTargetPriceForRr,
 	formatTradeTagsInput,
+	isExecutionFormClosing,
 	isTradePlanOptionCompatible,
 	parseTradeTags,
 	validateTradeForm,
@@ -64,7 +65,18 @@ void test('allows a Khan-style backtest execution ticket to stay open until the 
 		rr: '',
 	});
 
+	assert.equal(isExecutionFormClosing(form), false);
 	assert.equal(validateTradeForm(form, 'backtest', translateKey, [], true), null);
+});
+
+void test('treats a selected result as closing intent even before close time is filled', () => {
+	const form = createLiveForm({
+		closedAt: '',
+		exitPrice: '102',
+	});
+
+	assert.equal(isExecutionFormClosing(form), true);
+	assert.equal(validateTradeForm(form, 'backtest', translateKey, [], true), 'برای ثبت نتیجه، زمان بسته‌شدن معامله را وارد کن.');
 });
 
 void test('requires an exit price only when an execution-style backtest is being closed', () => {
@@ -78,6 +90,12 @@ void test('requires an exit price only when an execution-style backtest is being
 		validateTradeForm({ ...form, exitPrice: '102' }, 'backtest', translateKey, [], true),
 		null,
 	);
+});
+
+void test('maps SL to minus one R and supports trailed wins above two R', () => {
+	assert.equal(calculateLiveRr('long', '100', '99', '99'), -1);
+	assert.equal(calculateTargetPriceForRr('long', '100', '99', 3.5), 103.5);
+	assert.equal(calculateLiveRr('long', '100', '99', '103.5'), 3.5);
 });
 
 void test('keeps legacy backtests strict about RR and closed time', () => {

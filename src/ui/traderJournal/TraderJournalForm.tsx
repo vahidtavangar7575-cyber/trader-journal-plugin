@@ -14,6 +14,7 @@ import {
 	calculateTargetPriceForRr,
 	createInitialTradeForm,
 	getTradeResultFromRr,
+	isExecutionFormClosing,
 	isTradePlanOptionCompatible,
 } from './form';
 import type { TradeFormState } from './form';
@@ -54,7 +55,7 @@ export function TraderJournalForm({
 	const isEditing = Boolean(initialTrade && targetFilePath);
 	const isKhanTrade = Boolean(initialTrade?.khan_setup || form.tags.split(',').some((tag) => tag.trim() === 'khan'));
 	const usesExecutionLifecycle = isLiveJournal || isKhanTrade;
-	const isExecutionTradeClosed = usesExecutionLifecycle && Boolean(form.closedAt);
+	const isExecutionTradeClosed = usesExecutionLifecycle && isExecutionFormClosing(form);
 
 	const { isLoadingPlans, isLoadingSetups, planOptions, setupOptions } = useTradeReferenceData({
 		form,
@@ -74,6 +75,7 @@ export function TraderJournalForm({
 		isMounted,
 		isPastingImage,
 		removeImage,
+		selectImageFiles,
 		setImageInput,
 	} = useTradeAttachments({ form, journalType, plugin, setError, setForm });
 
@@ -265,10 +267,12 @@ export function TraderJournalForm({
 			{isKhanTrade ? (
 				<section className="trader-journal-review-form trader-journal-khan-ticket-guide">
 					<div className="trader-journal-review-form__header">
-						<h3>{isExecutionTradeClosed ? 'نتیجه را نهایی کن' : 'ترتیب ثبت: حساب ← ریسک واقعی ← Entry/SL/TP ← تصاویر ← ذخیره بلیت باز'}</h3>
+						<h3>{isExecutionTradeClosed ? 'نتیجه را نهایی کن' : isEditing ? 'معامله باز است؛ وقتی TP یا SL خورد نتیجه را ثبت کن' : 'ثبت اولیه فقط بلیت باز را می‌سازد'}</h3>
 						<p>{isExecutionTradeClosed
-							? 'Exit و زمان خروج را ثبت کن؛ نتیجه و R واقعی از قیمت‌ها محاسبه می‌شود و سپس موجودی همان حساب به‌روز خواهد شد.'
-							: 'نتیجه را الان حدس نزن. بلیت را با اطلاعاتی که در لحظه ورود داری ذخیره کن؛ بعداً از روی همان معامله آن را باز کن و نتیجه واقعی را ثبت کن.'}</p>
+							? 'نتیجه و R واقعی از انتخاب سود/ضرر و قیمت خروج محاسبه می‌شود؛ بعد از ذخیره، موجودی همان حساب نیز دقیق به‌روز می‌شود.'
+							: isEditing
+								? 'تا قبل از مشخص‌شدن نتیجه هیچ Exit یا زمان خروجی لازم نیست. وقتی معامله تمام شد، پایین همین فرم «ضرر / SL» یا «سود» را انتخاب کن.'
+								: 'حساب، ریسک، Entry/SL/TP، حجم و در صورت امکان دو تصویر را ثبت کن و معامله را باز ذخیره کن. نتیجه بعداً روی همین رکورد تکمیل می‌شود.'}</p>
 					</div>
 				</section>
 			) : null}
@@ -306,6 +310,7 @@ export function TraderJournalForm({
 					form={form}
 					holdingTime={holdingTime}
 					isEditing={isEditing}
+					isLiveJournal={isLiveJournal}
 					usesExecutionLifecycle={usesExecutionLifecycle}
 					isExecutionTradeClosed={isExecutionTradeClosed}
 					executionRr={executionRr}
@@ -329,6 +334,7 @@ export function TraderJournalForm({
 			<TradeRiskPsychologyFields
 				form={form}
 				accountLinked={Boolean(selectedAccount)}
+				accountCurrency={selectedAccount?.currency ?? 'USD'}
 				recommendedRiskPct={riskEvaluation?.recommendedRiskPct ?? null}
 				onAccountEquityChange={(value) => updateField('accountEquity', value)}
 				onRiskPctChange={(value) => { setRiskAuto(false); updateField('riskPct', value); }}
@@ -342,18 +348,28 @@ export function TraderJournalForm({
 
 			{isKhanTrade ? (
 				<section className="trader-journal-review-form">
-					<div className="trader-journal-review-form__header"><h3>پروتکل تصویر معامله خان</h3><p>تصویرها باید تصمیم را بازسازی کنند، نه فقط نتیجه را زیبا نشان دهند.</p></div>
+					<div className="trader-journal-review-form__header"><h3>پروتکل تصویر معامله خان</h3><p>دو تصویر اصلی را از کادرهای انتخاب فایل پایین بگیر؛ تصاویر باید تصمیم را بازسازی کنند، نه فقط نتیجه را زیبا نشان دهند.</p></div>
 					<ol>
 						<li><b>قبل از ورود — M15/HTF:</b> ساختار، POI، نقدینگی هدف، PDH/PDL یا Session context را کامل نشان بده.</li>
 						<li><b>قبل از ورود — M1/LTF:</b> IDM/CHOCH/Flip/OF/SCOB، محل Entry، SL و Target را نشان بده.</li>
-						<li><b>بعد از خروج — M1/LTF:</b> هنگام نهایی‌کردن نتیجه، نقطه اجرای واقعی و علت خروج را اضافه کن.</li>
-						<li><b>بعد از معامله — M15/HTF:</b> اختیاری ولی توصیه‌شده؛ نشان بده سناریوی بزرگ‌تر چگونه تمام شد.</li>
+						<li><b>بعد از خروج — M1/LTF:</b> هنگام نهایی‌کردن نتیجه، نقطه اجرای واقعی و علت خروج را می‌توانی به‌عنوان تصویر تکمیلی اضافه کنی.</li>
 					</ol>
 				</section>
 			) : null}
 
-			<TradeImageFields images={form.images} imageInput={imageInput} isPastingImage={isPastingImage} plugin={plugin} tr={tr}
-				onImageInputChange={setImageInput} onImageInputKeyDown={handleImageInputKeyDown} onImagePaste={handleImagePaste} onRemoveImage={removeImage} />
+			<TradeImageFields
+				images={form.images}
+				imageInput={imageInput}
+				isKhanTrade={isKhanTrade}
+				isPastingImage={isPastingImage}
+				plugin={plugin}
+				tr={tr}
+				onImageInputChange={setImageInput}
+				onImageInputKeyDown={handleImageInputKeyDown}
+				onImagePaste={handleImagePaste}
+				onRemoveImage={removeImage}
+				onSelectImageFiles={selectImageFiles}
+			/>
 
 			<label className="trader-journal-field">
 				<span>{tr(isLiveJournal ? 'detail.executionNotes' : 'detail.notes')}</span>

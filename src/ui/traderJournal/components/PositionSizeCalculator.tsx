@@ -86,6 +86,8 @@ export function PositionSizeCalculator({ form, accountCurrency, onApplyPositionS
 	const belowMinimum = Boolean(result && result.recommendedVolume > 0 && result.recommendedVolume < profile.minVolume);
 	const canApply = Boolean(result && result.recommendedVolume >= profile.minVolume && !belowMinimum);
 	const currency = (accountCurrency || profile.quoteCurrency).toUpperCase();
+	const recommendedText = result ? formatNumber(result.recommendedVolume, 4) : '';
+	const isApplied = Boolean(result && Number(form.positionSize) === result.recommendedVolume);
 
 	return (
 		<section className="trader-journal-review-form trader-journal-position-sizing">
@@ -115,11 +117,24 @@ export function PositionSizeCalculator({ form, accountCurrency, onApplyPositionS
 						<div><span>ارزش هر {formatDistanceUnit(profile)} / 1 lot</span><strong>{formatMoney(result.pipValuePerLotAccount, currency)}</strong></div>
 						<div><span>زیان 1 lot تا SL</span><strong>{formatMoney(result.lossPerLotAccount, currency)}</strong></div>
 					</div>
-					<div className="trader-journal-khan-result-card trader-journal-position-sizing__result">
-						<span>حجم پیشنهادی</span>
-						<strong>{formatNumber(result.recommendedVolume, 4)} Lot</strong>
+					<div className="trader-journal-khan-result-card trader-journal-position-sizing__result" style={{ border: '2px solid var(--interactive-accent)', padding: '14px' }}>
+						<label className="trader-journal-field" style={{ margin: 0 }}>
+							<span style={{ fontWeight: 800 }}>حجم نهایی پیشنهادی برای ورود</span>
+							<input
+								readOnly
+								value={recommendedText}
+								aria-label="حجم نهایی پیشنهادی"
+								style={{ fontSize: '26px', fontWeight: 900, textAlign: 'center', height: '52px' }}
+							/>
+						</label>
+						<strong style={{ display: 'block', textAlign: 'center', marginTop: '6px' }}>{recommendedText} Lot</strong>
 						<small>ریسک واقعی بعد از گردکردن رو به پایین: {formatMoney(result.actualRiskAmountAtRoundedVolume, currency)} ({formatNumber(result.actualRiskPctAtRoundedVolume, 4)}%)</small>
-						<button type="button" className="mod-cta" disabled={!canApply} onClick={() => onApplyPositionSize(String(result.recommendedVolume))}>استفاده از این حجم</button>
+						<button type="button" className="mod-cta" style={{ width: '100%', minHeight: '42px', marginTop: '8px' }} disabled={!canApply} onClick={() => onApplyPositionSize(String(result.recommendedVolume))}>
+							ثبت {recommendedText} Lot در کادر «حجم معامله»
+						</button>
+						<div style={{ marginTop: '6px', fontWeight: 700 }}>
+							{isApplied ? '✓ همین حجم اکنون در معامله ثبت شده است.' : `حجم فعلی فرم: ${form.positionSize || 'خالی'} — برای جلوگیری از اشتباه، عدد پیشنهادی را با دکمه بالا ثبت کن.`}
+						</div>
 					</div>
 					{result.rawVolume > 0 && result.rawVolume < profile.minVolume ? (
 						<div className="trader-journal-form__error">حجم محاسبه‌شده از حداقل حجم مرجع {profile.minVolume} lot کوچک‌تر است؛ با این مشخصات معامله را کوچک‌تر/پرریسک‌تر نکن.</div>
