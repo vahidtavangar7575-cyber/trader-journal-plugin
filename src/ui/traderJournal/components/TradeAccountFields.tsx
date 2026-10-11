@@ -8,7 +8,7 @@ import { AccountManagerModal } from '../../AccountManagerModal';
 interface Props {
 	plugin: TraderJournalPlugin;
 	accountId: string;
-	tradeDate: string;
+	tradeDate?: string;
 	selectedAccount: TradingAccount | null;
 	evaluation: RiskPolicyEvaluation | null;
 	ruleWarnings: string[];
@@ -34,7 +34,7 @@ export function TradeAccountFields({
 			evaluation,
 			policy: plugin.settings.riskPolicy,
 			account: selectedAccount,
-			date: tradeDate,
+			date: tradeDate || localDateKey(),
 			trades: allTrades,
 		})
 		: [];
@@ -114,6 +114,13 @@ export function TradeAccountFields({
 			))}
 		</section>
 	);
+}
+
+function localDateKey(date = new Date()): string {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
 }
 
 function formatMoney(value: number, currency: string): string {
