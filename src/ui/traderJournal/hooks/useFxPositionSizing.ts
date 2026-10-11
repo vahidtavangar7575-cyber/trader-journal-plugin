@@ -55,7 +55,6 @@ export function useFxPositionSizing({ plugin, form, selectedAccount, setForm }: 
 			const preparation = prepareFxPositionSizing(form.symbol, selectedAccount.currency, stopLoss);
 			if (preparation.kind === 'invalid') {
 				setResult(null);
-				setError(preparation.reason);
 				return;
 			}
 
