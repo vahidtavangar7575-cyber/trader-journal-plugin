@@ -31,6 +31,9 @@ export interface TraderJournalSettings {
 	accounts: TradingAccount[];
 	lastSelectedAccountId: string;
 	lastCommitmentDate: string;
+	fxPositionSizingEnabled: boolean;
+	fxRateApiKey: string;
+	fxLotStep: number;
 	riskPolicy: RiskPolicySettings;
 }
 
@@ -53,6 +56,9 @@ export const DEFAULT_SETTINGS: TraderJournalSettings = {
 	accounts: [],
 	lastSelectedAccountId: '',
 	lastCommitmentDate: '',
+	fxPositionSizingEnabled: false,
+	fxRateApiKey: '',
+	fxLotStep: 0.01,
 	riskPolicy: { ...DEFAULT_RISK_POLICY },
 };
 
@@ -85,6 +91,9 @@ export function normalizeSettings(settings: Partial<TraderJournalSettings> | nul
 		accounts,
 		lastSelectedAccountId,
 		lastCommitmentDate: normalizeDateKey(settings?.lastCommitmentDate),
+		fxPositionSizingEnabled: settings?.fxPositionSizingEnabled === true,
+		fxRateApiKey: typeof settings?.fxRateApiKey === 'string' ? settings.fxRateApiKey.trim() : '',
+		fxLotStep: positiveNumber(settings?.fxLotStep, DEFAULT_SETTINGS.fxLotStep),
 		riskPolicy: normalizeRiskPolicy(settings?.riskPolicy),
 	};
 }
@@ -185,6 +194,11 @@ function normalizeDateKey(value: unknown): string {
 	if (typeof value !== 'string') return '';
 	const dateKey = value.trim();
 	return /^\d{4}-\d{2}-\d{2}$/.test(dateKey) ? dateKey : '';
+}
+
+function positiveNumber(value: unknown, fallback: number): number {
+	const parsed = numberField(value);
+	return parsed !== null && parsed > 0 ? parsed : fallback;
 }
 
 function stringField(value: unknown): string {
