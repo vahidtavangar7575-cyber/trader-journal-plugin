@@ -10,6 +10,7 @@ import {
 	getKhanDecisionResult,
 	validateKhanRuleGraph,
 } from '../src/khan/engine';
+import { validateKhanGuidanceCoverage } from '../src/khan/guidance';
 import { validatePresentationAlignment } from '../src/khan/presentationAudit';
 import type { KhanDecisionSnapshot, KhanSetupId } from '../src/khan/types';
 
@@ -19,6 +20,10 @@ void test('Khan rule graph has no missing targets', () => {
 
 void test('Khan decision targets and risk endpoints match the actual 58-page Presentation hyperlinks', () => {
 	assert.deepEqual(validatePresentationAlignment(), []);
+});
+
+void test('every defined Khan page has first-time-user chart guidance', () => {
+	assert.deepEqual(validateKhanGuidanceCoverage(), []);
 });
 
 void test('all six setups can be opened directly at their source start page', () => {
