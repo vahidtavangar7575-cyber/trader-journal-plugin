@@ -17,3 +17,4 @@ import './khanWizard.test';
 import './commitment.test';
 import './riskPolicy.test';
 import './settings.test';
+import './positionSizing.test';
