@@ -9,6 +9,7 @@ interface Props {
 	accountId: string;
 	selectedAccount: TradingAccount | null;
 	evaluation: RiskPolicyEvaluation | null;
+	riskReasons: string[];
 	ruleWarnings: string[];
 	onAccountChange: (accountId: string) => void;
 	onAccountsChanged: () => void;
@@ -19,6 +20,7 @@ export function TradeAccountFields({
 	accountId,
 	selectedAccount,
 	evaluation,
+	riskReasons,
 	ruleWarnings,
 	onAccountChange,
 	onAccountsChanged,
@@ -79,6 +81,15 @@ export function TradeAccountFields({
 					<span>حداقل RR: <b>{evaluation.minPlannedRr}R</b></span>
 					<span>هدف فعلی: <b>{evaluation.targetR}R</b></span>
 				</div>
+			) : null}
+
+			{riskReasons.length > 0 ? (
+				<details className="trader-journal-plan-linked-trades" open>
+					<summary>چرا این درصد ریسک پیشنهاد شده؟</summary>
+					<ol>
+						{riskReasons.map((reason) => <li key={reason}>{reason}</li>)}
+					</ol>
+				</details>
 			) : null}
 
 			{selectedAccount?.type === 'backtest' ? (
