@@ -35,69 +35,37 @@ const RESULT_LABELS: Record<TraderJournalLanguage, Record<string, string>> = {
 };
 
 const SIDE_LABELS: Record<TraderJournalLanguage, Record<string, string>> = {
-	en: {
-		long: 'Long',
-		short: 'Short',
-	},
-	vi: {
-		long: 'Long',
-		short: 'Short',
-	},
-	fa: {
-		long: 'خرید',
-		short: 'فروش',
-	},
+	en: { long: 'Long', short: 'Short' },
+	vi: { long: 'Long', short: 'Short' },
+	fa: { long: 'خرید', short: 'فروش' },
 };
 
+/** Fields rendered elsewhere or represented in the stored Persian human report.
+ * Keeping them here prevents the UI from dumping raw internal English keys under
+ * "Additional data" while the JSON block remains the machine source of truth. */
 export const KNOWN_TRADE_FIELDS = new Set([
-	'schemaVersion',
-	'id',
-	'date',
-	'journal_type',
-	'plan_id',
-	'setup_id',
-	'status',
-	'symbol',
-	'side',
-	'setup',
-	'timeframe',
-	'result',
-	'rr',
-	'tags',
-	'entry_price',
-	'stop_loss',
-	'exit_price',
-	'take_profit',
-	'images',
-	'notes',
-	'opened_at',
-	'closed_at',
-	'holding_time',
-	'backtest_start_date',
-	'backtest_end_date',
-	'review',
+	'schemaVersion', 'id', 'date', 'journal_type', 'plan_id', 'setup_id', 'status',
+	'symbol', 'side', 'setup', 'timeframe', 'result', 'planned_rr', 'rr', 'tags',
+	'entry_price', 'stop_loss', 'exit_price', 'take_profit', 'images', 'notes',
+	'opened_at', 'closed_at', 'holding_time', 'backtest_start_date', 'backtest_end_date', 'review',
+	'account_id', 'account_name', 'account_type', 'account_code', 'account_currency',
+	'account_equity', 'account_balance_before', 'account_balance_after',
+	'risk_pct', 'risk_amount', 'pnl_amount', 'pnl_pct', 'position_size', 'position_unit',
+	'session', 'market_arrival_context', 'pre_trade_emotion', 'urge_to_chase',
+	'risk_rule_trade_number', 'risk_rule_recommended_pct', 'risk_rule_day_base_pct',
+	'risk_rule_week_base_pct', 'risk_rule_violation', 'risk_rule_warnings',
+	'khan_setup', 'khan_risk_pct', 'khan_approved_risk_pct', 'khan_rule_version',
+	'khan_result_page', 'khan_source_pages', 'khan_decision_path', 'khan_source_exact',
+	'khan_source_document', 'khan_operational_context', 'khan_operational_guidance',
 ]);
 
 export function parseTradeJson(source: string): { trade: TradeEntry | null; error: string | null } {
 	try {
 		const parsed: unknown = JSON.parse(source);
-
-		if (!isRecord(parsed)) {
-			return {
-				trade: null,
-				error: 'Trade block must be a JSON object.',
-			};
-		}
-
-		return {
-			trade: parsed,
-			error: null,
-		};
+		if (!isRecord(parsed)) return { trade: null, error: 'Trade block must be a JSON object.' };
+		return { trade: parsed, error: null };
 	} catch (error) {
-		return {
-			trade: null,
-			error: error instanceof Error ? error.message : 'Invalid JSON.',
-		};
+		return { trade: null, error: error instanceof Error ? error.message : 'Invalid JSON.' };
 	}
 }
 
@@ -112,173 +80,85 @@ export function formatSide(value: unknown, language: TraderJournalLanguage = 'en
 }
 
 export function formatRr(value: unknown): string {
-	if (typeof value === 'number' && Number.isFinite(value)) {
-		return `${formatNumber(value)}R`;
-	}
-
+	if (typeof value === 'number' && Number.isFinite(value)) return `${formatNumber(value)}R`;
 	const raw = stringifyValue(value);
-	if (!raw) {
-		return '';
-	}
-
+	if (!raw) return '';
 	return raw.toLowerCase().endsWith('r') ? raw : `${raw}R`;
 }
 
 export function formatTags(value: unknown): string[] {
-	if (Array.isArray(value)) {
-		return value.map((item) => stringifyValue(item)).filter(Boolean);
-	}
-
-	if (typeof value === 'string') {
-		return value
-			.split(',')
-			.map((tag) => tag.trim())
-			.filter(Boolean);
-	}
-
+	if (Array.isArray(value)) return value.map((item) => stringifyValue(item)).filter(Boolean);
+	if (typeof value === 'string') return value.split(',').map((tag) => tag.trim()).filter(Boolean);
 	return [];
 }
 
 export function getHoldingMinutes(trade: TradeEntry): number | null {
 	const stored = parseNumber(trade.holding_time);
-	if (stored !== null) {
-		return stored;
-	}
-
+	if (stored !== null) return stored;
 	const openedAt = parseDateMs(trade.opened_at);
 	const closedAt = parseDateMs(trade.closed_at);
-
-	if (openedAt === null || closedAt === null || closedAt < openedAt) {
-		return null;
-	}
-
+	if (openedAt === null || closedAt === null || closedAt < openedAt) return null;
 	return Math.round((closedAt - openedAt) / 60000);
 }
 
 export function formatDuration(minutes: number | null): string {
-	if (minutes === null) {
-		return '';
-	}
-
-	if (minutes < 60) {
-		return `${minutes}m`;
-	}
-
+	if (minutes === null) return '';
+	if (minutes < 60) return `${minutes}m`;
 	const hours = Math.floor(minutes / 60);
 	const remainingMinutes = minutes % 60;
-
-	if (remainingMinutes === 0) {
-		return `${hours}h`;
-	}
-
-	return `${hours}h ${remainingMinutes}m`;
+	return remainingMinutes === 0 ? `${hours}h` : `${hours}h ${remainingMinutes}m`;
 }
 
 export function formatPrice(value: unknown): string {
 	const parsed = parseNumber(value);
-	if (parsed !== null) {
-		return formatNumber(parsed);
-	}
-
-	return stringifyValue(value);
+	return parsed !== null ? formatNumber(parsed) : stringifyValue(value);
 }
 
 export function normalizeTradeImages(value: unknown): NormalizedTradeImage[] {
 	const items = Array.isArray(value) ? value : value ? [value] : [];
-
-	return items
-		.map((item) => normalizeTradeImage(item))
-		.filter((item): item is NormalizedTradeImage => item !== null);
+	return items.map((item) => normalizeTradeImage(item)).filter((item): item is NormalizedTradeImage => item !== null);
 }
 
 export function stringifyValue(value: unknown): string {
-	if (value === null || value === undefined) {
-		return '';
-	}
-
-	if (typeof value === 'string') {
-		return value.trim();
-	}
-
-	if (typeof value === 'number' || typeof value === 'boolean') {
-		return String(value);
-	}
-
+	if (value === null || value === undefined) return '';
+	if (typeof value === 'string') return value.trim();
+	if (typeof value === 'number' || typeof value === 'boolean') return String(value);
 	return JSON.stringify(value);
 }
 
 export function formatDateTime(value: unknown): string {
 	const raw = stringifyValue(value);
-	if (!raw) {
-		return '';
-	}
-
+	if (!raw) return '';
 	const date = new Date(raw);
-	if (Number.isNaN(date.getTime())) {
-		return raw;
-	}
-
+	if (Number.isNaN(date.getTime())) return raw;
 	return date.toLocaleString(undefined, {
-		year: 'numeric',
-		month: '2-digit',
-		day: '2-digit',
-		hour: '2-digit',
-		minute: '2-digit',
-		second: '2-digit',
-		hour12: false,
+		year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
 	});
 }
 
 function normalizeTradeImage(value: unknown): NormalizedTradeImage | null {
-	if (typeof value === 'string') {
-		return normalizeImageValue(value);
-	}
-
-	if (!isRecord(value)) {
-		return null;
-	}
-
+	if (typeof value === 'string') return normalizeImageValue(value);
+	if (!isRecord(value)) return null;
 	const image = value as TradeImage;
 	const rawValue = stringifyValue(image.value);
-	if (!rawValue) {
-		return null;
-	}
-
+	if (!rawValue) return null;
 	const type = image.type === 'url' || image.type === 'file' ? image.type : inferImageType(rawValue);
 	const label = stringifyValue(image.label);
-
-	return {
-		type,
-		value: cleanImageValue(rawValue),
-		...(label ? { label } : {}),
-	};
+	return { type, value: cleanImageValue(rawValue), ...(label ? { label } : {}) };
 }
 
 function normalizeImageValue(value: string): NormalizedTradeImage | null {
 	const cleanedValue = cleanImageValue(value);
-	if (!cleanedValue) {
-		return null;
-	}
-
-	return {
-		type: inferImageType(cleanedValue),
-		value: cleanedValue,
-	};
+	if (!cleanedValue) return null;
+	return { type: inferImageType(cleanedValue), value: cleanedValue };
 }
 
 function cleanImageValue(value: string): string {
 	const trimmed = value.trim();
 	const wikiMatch = trimmed.match(/^!?\[\[([^\]]+)\]\]$/);
-
-	if (wikiMatch?.[1]) {
-		return wikiMatch[1].split('|')[0]?.trim() ?? '';
-	}
-
+	if (wikiMatch?.[1]) return wikiMatch[1].split('|')[0]?.trim() ?? '';
 	const markdownImageMatch = trimmed.match(/^!\[[^\]]*\]\(([^)]+)\)$/);
-	if (markdownImageMatch?.[1]) {
-		return markdownImageMatch[1].trim();
-	}
-
+	if (markdownImageMatch?.[1]) return markdownImageMatch[1].trim();
 	return trimmed;
 }
 
@@ -287,24 +167,15 @@ function inferImageType(value: string): 'url' | 'file' {
 }
 
 function parseNumber(value: unknown): number | null {
-	if (typeof value === 'number' && Number.isFinite(value)) {
-		return value;
-	}
-
-	if (typeof value !== 'string') {
-		return null;
-	}
-
+	if (typeof value === 'number' && Number.isFinite(value)) return value;
+	if (typeof value !== 'string') return null;
 	const parsed = Number(value.trim());
 	return Number.isFinite(parsed) ? parsed : null;
 }
 
 function parseDateMs(value: unknown): number | null {
 	const raw = stringifyValue(value);
-	if (!raw) {
-		return null;
-	}
-
+	if (!raw) return null;
 	const parsed = new Date(raw).getTime();
 	return Number.isNaN(parsed) ? null : parsed;
 }
