@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ChangeEvent } from 'react';
 import type { Translator } from '../../../i18n';
 import { formatDuration } from '../../../trades/format';
@@ -22,6 +23,7 @@ interface TradeExecutionFieldsProps {
 	onStopLossChange: (value: string) => void;
 	onTakeProfitChange: (value: string) => void;
 	onApplyTargetRr: () => void;
+	onApplyRealizedR: (value: string) => void;
 }
 
 export function TradeExecutionFields({
@@ -42,7 +44,9 @@ export function TradeExecutionFields({
 	onStopLossChange,
 	onTakeProfitChange,
 	onApplyTargetRr,
+	onApplyRealizedR,
 }: TradeExecutionFieldsProps) {
+	const [realizedRInput, setRealizedRInput] = useState('');
 	return (
 		<>
 			<label className="trader-journal-field">
@@ -78,6 +82,17 @@ export function TradeExecutionFields({
 							<button type="button" onClick={onApplyTargetRr}>تنظیم {formatComputedRr(targetR)}R</button>
 						</div>
 					</label>
+					{isEditing && !isExecutionTradeClosed ? (
+						<label className="trader-journal-field">
+							<span>بستن سریع با نتیجه R</span>
+							<div className="trader-journal-setup-select-row">
+								<input type="number" step="0.01" value={realizedRInput} placeholder="مثلاً 2 یا -1 یا 0.5"
+									onChange={(event: ChangeEvent<HTMLInputElement>) => setRealizedRInput(event.target.value)} />
+								<button type="button" className="mod-cta" onClick={() => onApplyRealizedR(realizedRInput)}>ثبت نتیجه با R</button>
+							</div>
+							<small>مثبت = سود، منفی = زیان، صفر = Breakeven. Exit متناظر از Entry و Stop محاسبه می‌شود تا دفتر حساب و RR واقعی سازگار بماند.</small>
+						</label>
+					) : null}
 				</>
 			) : null}
 
