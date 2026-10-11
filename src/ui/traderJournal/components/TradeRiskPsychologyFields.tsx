@@ -6,7 +6,7 @@ import { PositionSizeCalculator } from './PositionSizeCalculator';
 interface Props {
 	form: TradeFormState;
 	accountLinked: boolean;
-	accountCurrency: string;
+	accountCurrency?: string;
 	recommendedRiskPct: number | null;
 	onAccountEquityChange: (value: string) => void;
 	onRiskPctChange: (value: string) => void;
@@ -21,7 +21,7 @@ interface Props {
 export function TradeRiskPsychologyFields({
 	form,
 	accountLinked,
-	accountCurrency,
+	accountCurrency = 'USD',
 	recommendedRiskPct,
 	onAccountEquityChange,
 	onRiskPctChange,
