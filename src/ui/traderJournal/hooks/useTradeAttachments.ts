@@ -35,6 +35,7 @@ export interface TradeAttachmentsController {
 	isMounted: () => boolean;
 	isPastingImage: boolean;
 	removeImage: (index: number) => void;
+	selectImageFiles: (imageFiles: File[], label?: string) => void;
 	setImageInput: Dispatch<SetStateAction<string>>;
 }
 
@@ -69,12 +70,16 @@ export function useTradeAttachments({
 
 	function addImages(images: TradeImage[]) {
 		setForm((currentForm) => {
-			const existingImageValues = new Set(currentForm.images.map((image) => image.value).filter(Boolean));
+			const labelsToReplace = new Set(images.map((image) => image.label).filter((label): label is string => Boolean(label)));
+			const baseImages = labelsToReplace.size > 0
+				? currentForm.images.filter((image) => !image.label || !labelsToReplace.has(image.label))
+				: currentForm.images;
+			const existingImageValues = new Set(baseImages.map((image) => image.value).filter(Boolean));
 			const nextImages = images.filter((image) => image.value && !existingImageValues.has(image.value));
 
 			return {
 				...currentForm,
-				images: [...currentForm.images, ...nextImages],
+				images: [...baseImages, ...nextImages],
 			};
 		});
 	}
@@ -124,16 +129,23 @@ export function useTradeAttachments({
 		}
 
 		event.preventDefault();
-		void savePastedImages(imageFiles);
+		void saveImageFiles(imageFiles);
 	}
 
-	async function savePastedImages(imageFiles: File[]) {
+	function selectImageFiles(imageFiles: File[], label?: string) {
+		const images = imageFiles.filter((file) => file.type.startsWith('image/'));
+		if (images.length === 0) return;
+		void saveImageFiles(images, label);
+	}
+
+	async function saveImageFiles(imageFiles: File[], label?: string) {
 		try {
 			setIsPastingImage(true);
 			setError('');
 			const results = await Promise.allSettled(
 				imageFiles.map(async (imageFile): Promise<TradeImage | null> => {
-					const image = await savePastedImage(plugin, imageFile, form.symbol, journalType);
+					const savedImage = await savePastedImage(plugin, imageFile, form.symbol, journalType);
+					const image = label ? { ...savedImage, label } : savedImage;
 					if (image.type !== 'file' || !image.value) {
 						return image;
 					}
@@ -184,6 +196,7 @@ export function useTradeAttachments({
 		isMounted: () => mountedRef.current,
 		isPastingImage,
 		removeImage,
+		selectImageFiles,
 		setImageInput,
 	};
 }
