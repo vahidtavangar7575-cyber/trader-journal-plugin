@@ -41,8 +41,9 @@ export function installTraderJournalScrollSafety(): () => void {
 
   const applyAll = () => {
     queued = false;
-    const shells = document.querySelectorAll<HTMLElement>('.trader-journal-modal-shell');
-    for (const shell of shells) applyScrollContract(shell);
+    document.querySelectorAll<HTMLElement>('.trader-journal-modal-shell').forEach((shell) => {
+      applyScrollContract(shell);
+    });
   };
 
   const queueApply = () => {
@@ -68,30 +69,30 @@ function applyScrollContract(shell: HTMLElement): void {
   // The outer .modal-content is the single vertical owner. Nested sections are
   // returned to natural document flow so wheel/trackpad events cannot die in an
   // inner overflow:hidden/max-height combination.
-  for (const selector of NATURAL_FLOW_SELECTORS) {
-    for (const element of content.querySelectorAll<HTMLElement>(selector)) {
+  NATURAL_FLOW_SELECTORS.forEach((selector) => {
+    content.querySelectorAll<HTMLElement>(selector).forEach((element) => {
       element.style.setProperty('max-height', 'none');
       element.style.setProperty('min-height', '0');
       element.style.setProperty('overflow-y', 'visible');
       element.style.setProperty('overflow-x', 'visible');
-    }
-  }
+    });
+  });
 
   // Images/tables may be wide, but horizontal scrolling stays local and never
   // blocks the modal's vertical scroll.
-  for (const element of content.querySelectorAll<HTMLElement>(
+  content.querySelectorAll<HTMLElement>(
     '.trader-journal-trade-images, .trader-journal-dashboard-adherence, .trader-journal-image-modal-frame',
-  )) {
+  ).forEach((element) => {
     element.style.setProperty('max-width', '100%');
     element.style.setProperty('min-width', '0');
     element.style.setProperty('overflow-x', 'auto');
-  }
+  });
 }
 
 function applyStyles(element: HTMLElement, styles: Readonly<Record<string, string>>): void {
-  for (const [property, value] of Object.entries(styles)) {
+  Object.entries(styles).forEach(([property, value]) => {
     element.style.setProperty(toKebabCase(property), value);
-  }
+  });
 }
 
 function toKebabCase(value: string): string {
