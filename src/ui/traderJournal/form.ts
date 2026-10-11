@@ -1,6 +1,7 @@
 import type { TradePlanOption } from '../../plans/types';
 import { normalizeSymbol } from '../../settings';
 import { formatTags, normalizeTradeImages, stringifyValue } from '../../trades/format';
+import { stripGeneratedPersianReport } from '../../trades/persianReport';
 import { calculateHoldingTime } from '../../trades/storage';
 import type {
 	PreTradeEmotion,
@@ -84,7 +85,7 @@ export function createInitialTradeForm(
 		preTradeEmotion: normalizePreTradeEmotion(initialTrade?.pre_trade_emotion),
 		urgeToChase: stringifyValue(initialTrade?.urge_to_chase),
 		images: normalizeTradeImages(initialTrade?.images),
-		notes: stringifyValue(initialTrade?.notes),
+		notes: stripGeneratedPersianReport(initialTrade?.notes),
 		openedAt: toDateTimeLocalInput(openedAt),
 		closedAt: toDateTimeLocalInput(closedAt),
 		review: createTradeReviewFormState(initialTrade?.review),

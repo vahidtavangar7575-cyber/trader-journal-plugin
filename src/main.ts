@@ -19,6 +19,7 @@ import { registerTraderJournalDashboardView } from './dashboard/DashboardView';
 import { registerTradeDrilldownView } from './dashboard/drilldown/TradeDrilldownView';
 import { syncGraphTypeTags } from './graph/tagSync';
 import { ReferenceDataService } from './journal/ReferenceDataService';
+import { installTraderJournalScrollSafety } from './ui/scrollSafety';
 
 interface TraderJournalPluginData {
 	settings: TraderJournalSettings;
@@ -36,10 +37,12 @@ export default class TraderJournalPlugin extends Plugin {
 	referenceDataService!: ReferenceDataService;
 	dataMigrationVersion = 0;
 	private saveQueue: Promise<void> = Promise.resolve();
+	private removeScrollSafety: (() => void) | null = null;
 
 	async onload() {
 		await this.loadSettings();
 		this.syncPersianDirection();
+		this.removeScrollSafety = installTraderJournalScrollSafety();
 		this.economicCalendarService = new EconomicCalendarService(this);
 		this.journalDataService = new JournalDataService(this);
 		this.referenceDataService = new ReferenceDataService(this);
@@ -67,6 +70,8 @@ export default class TraderJournalPlugin extends Plugin {
 
 	onunload() {
 		document.body.classList.remove('trader-journal-fa');
+		this.removeScrollSafety?.();
+		this.removeScrollSafety = null;
 	}
 
 	private syncPersianDirection() {

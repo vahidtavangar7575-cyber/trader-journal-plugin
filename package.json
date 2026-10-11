@@ -1,7 +1,7 @@
 {
 	"name": "trader-journal-plugin",
-	"version": "1.11.0",
-	"description": "Trading cockpit for Obsidian with Persian/RTL support, persistent accounts, configurable risk engine, Khan decision workflows, fast open-trade execution lifecycle, focused instrument position sizing, and trading review.",
+	"version": "1.12.0",
+	"description": "Trading cockpit for Obsidian with Persian/RTL support, source-audited Khan Presentation workflows, scroll-safe modals, comprehensive Persian trade reports, persistent accounts, configurable risk engine, position sizing, and trading review.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
