@@ -129,7 +129,7 @@ export const INSTRUMENT_PROFILES: InstrumentProfile[] = [
 ];
 
 export function normalizeInstrumentSymbol(value: string): string {
-	return value.trim().toUpperCase().replace(/[\s_\-]/g, '');
+	return value.trim().toUpperCase().replace(/[\s_-]/g, '');
 }
 
 export function findInstrumentProfile(symbol: string): InstrumentProfile | null {
