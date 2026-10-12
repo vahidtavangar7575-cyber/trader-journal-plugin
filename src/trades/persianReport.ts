@@ -1,4 +1,4 @@
-import type { TradeEntry } from './types';
+import type { TradeEntry, TradeReviewMistakeTag } from './types';
 import { formatDateTime, formatDuration, formatPrice, formatRr, getHoldingMinutes, normalizeTradeImages, stringifyValue } from './format';
 
 export const PERSIAN_REPORT_START = '──────── گزارش خودکار فارسی معامله ────────';
@@ -28,7 +28,7 @@ export function buildPersianTradeReport(trade: TradeEntry): string {
   };
 
   lines.push('');
-  lines.push('【 شناسنامه معامله 】');
+  lines.push('【 شناسنامه کامل معامله 】');
   add('شناسه معامله', trade.id);
   add('نوع ثبت', journalTypeLabel(trade.journal_type));
   add('وضعیت معامله', stringifyValue(trade.status) === 'closed' ? 'بسته‌شده' : 'باز / در انتظار نتیجه');
@@ -42,18 +42,18 @@ export function buildPersianTradeReport(trade: TradeEntry): string {
   add('مدت نگهداری', holding);
 
   lines.push('');
-  lines.push('【 منطق خان و مسیر Presentation 】');
-  add('ستاپ تشخیص‌داده‌شده', khanSetupLabel(trade.khan_setup));
+  lines.push('【 منطق خان و مسیر دقیق Presentation 】');
+  add('ستاپ ثبت‌شده', khanSetupLabel(trade.khan_setup));
   add('نسخه موتور قوانین', trade.khan_rule_version);
   add('صفحه نتیجه در Presentation', trade.khan_result_page);
   const pages = asArray(trade.khan_source_pages).map(String).filter(Boolean);
   if (pages.length) lines.push(`مسیر صفحات منبع: ${pages.join(' ← ')}`);
   const sourceDocument = stringifyValue(trade.khan_source_document) || 'Presentation - Copy.pdf (58 pages)';
   lines.push(`منبع تصمیم: ${sourceDocument}`);
-  if (trade.khan_source_exact === true) lines.push('وضعیت تطابق: مسیر تصمیم با لینک‌های داخلی خود فایل Presentation تطبیق و قفل شده است.');
+  if (trade.khan_source_exact === true) lines.push('وضعیت تطابق: مسیر تصمیم از گراف منبع Presentation ثبت شده و پاسخ‌ها قابل بازسازی‌اند.');
   const decisionPath = normalizeDecisionPath(trade.khan_decision_path);
   if (decisionPath.length) {
-    lines.push('پاسخ‌های ثبت‌شده:');
+    lines.push('پاسخ‌های ثبت‌شده در مسیر:');
     decisionPath.forEach((item, index) => lines.push(`  ${index + 1}) صفحه ${item.page}: ${item.answerLabel}`));
   }
   add('زمینه عملیاتی هنگام ورود به فرایند', trade.khan_operational_context);
@@ -68,16 +68,16 @@ export function buildPersianTradeReport(trade: TradeEntry): string {
   addNumber('موجودی قبل از معامله', trade.account_balance_before, lines, trade.account_currency);
   addNumber('Equity هنگام ورود', trade.account_equity, lines, trade.account_currency);
   addNumber('موجودی بعد از معامله', trade.account_balance_after, lines, trade.account_currency);
-  addPercent('سقف ریسک مسیر خان', trade.khan_risk_pct, lines);
+  addPercent('ریسک نوشته‌شده در مسیر Presentation', trade.khan_risk_pct, lines);
   addPercent('ریسک پیشنهادی موتور مدیریت سرمایه', trade.risk_rule_recommended_pct, lines);
-  addPercent('ریسک واقعی ثبت‌شده', trade.risk_pct, lines);
+  addPercent('ریسک واقعی اجراشده', trade.risk_pct, lines);
   addNumber('مبلغ واقعی در معرض ریسک', trade.risk_amount, lines, trade.account_currency);
   add('شماره معامله امروز', trade.risk_rule_trade_number);
   addPercent('پایه ریسک روز', trade.risk_rule_day_base_pct, lines);
   addPercent('پایه ریسک هفته', trade.risk_rule_week_base_pct, lines);
-  if (trade.risk_rule_violation === true) lines.push('وضعیت انضباط سرمایه: ⚠ تخطی از حداقل یک قانون ثبت شده است.');
+  if (trade.risk_rule_violation === true) lines.push('وضعیت انضباط سرمایه: ⚠ حداقل یک تخطی از قوانین ثبت شده است.');
   const warnings = asArray(trade.risk_rule_warnings).map(String).filter(Boolean);
-  warnings.forEach((warning) => lines.push(`  هشدار: ${warning}`));
+  warnings.forEach((warning) => lines.push(`  هشدار ثبت‌شده: ${warning}`));
 
   lines.push('');
   lines.push('【 اجرای معامله 】');
@@ -93,19 +93,48 @@ export function buildPersianTradeReport(trade: TradeEntry): string {
   addPercent('سود/زیان درصدی', trade.pnl_pct, lines);
 
   lines.push('');
-  lines.push('【 وضعیت ذهنی و رفتار 】');
+  lines.push('【 وضعیت ذهنی قبل از معامله 】');
   add('وضعیت بازار هنگام تصمیم', trade.market_arrival_context);
   add('حالت ذهنی قبل از ورود', emotionLabel(trade.pre_trade_emotion));
   const chase = stringifyValue(trade.urge_to_chase);
   if (chase) lines.push(`میل به تعقیب قیمت: ${chase} از ۱۰`);
 
+  lines.push('');
+  lines.push('【 ارزیابی کیفیت اجرا و تجربه 】');
+  if (!trade.review) {
+    lines.push('بازبینی پس از معامله هنوز تکمیل نشده است.');
+  } else {
+    add('کیفیت Context', reviewContextLabel(trade.review.context));
+    add('زمان‌بندی ورود', entryTimingLabel(trade.review.entry_timing));
+    add('پایبندی به پلن', planAdherenceLabel(trade.review.plan_adherence));
+    const mistakes = Array.isArray(trade.review.mistake_tags) ? trade.review.mistake_tags : [];
+    if (mistakes.length) lines.push(`خطاهای ثبت‌شده: ${mistakes.map(mistakeLabel).join('، ')}`);
+    else lines.push('خطاهای ثبت‌شده: موردی ثبت نشده است.');
+    add('کاری که درست انجام شد', trade.review.what_went_well);
+    add('درس اصلی معامله', trade.review.lesson);
+    add('اقدام مشخص برای معامله بعد', trade.review.next_action);
+    add('زمان انجام بازبینی', formatDateTime(trade.review.reviewed_at));
+  }
+
   const images = normalizeTradeImages(trade.images);
   lines.push('');
-  lines.push('【 تصاویر مستند 】');
+  lines.push('【 تصاویر مستند معامله 】');
   if (!images.length) {
     lines.push('تصویری ثبت نشده است.');
   } else {
     images.forEach((image, index) => lines.push(`  ${index + 1}) ${image.label || 'تصویر معامله'} — ${image.value}`));
+  }
+
+  lines.push('');
+  lines.push('【 جمع‌بندی خوانا 】');
+  if (stringifyValue(trade.status) !== 'closed') {
+    lines.push('این معامله هنوز باز است؛ نتیجه و ارزیابی نهایی باید بعد از بسته‌شدن روی همین رکورد تکمیل شود.');
+  } else {
+    const result = resultLabel(trade.result) || 'نامشخص';
+    const realizedR = formatRr(trade.rr) || 'نامشخص';
+    lines.push(`نتیجه ثبت‌شده: ${result} با ${realizedR}.`);
+    if (trade.review?.plan_adherence) lines.push(`پایبندی به پلن: ${planAdherenceLabel(trade.review.plan_adherence)}.`);
+    if (trade.review?.lesson) lines.push(`درس ثبت‌شده: ${trade.review.lesson}`);
   }
 
   lines.push('');
@@ -178,6 +207,53 @@ function emotionLabel(value: unknown): string {
   };
   const raw = stringifyValue(value);
   return labels[raw] ?? raw;
+}
+
+function reviewContextLabel(value: unknown): string {
+  const labels: Record<string, string> = {
+    correct: 'درست',
+    partial: 'نیمه‌درست / ناقص',
+    wrong: 'اشتباه',
+  };
+  const raw = stringifyValue(value);
+  return labels[raw] ?? raw;
+}
+
+function entryTimingLabel(value: unknown): string {
+  const labels: Record<string, string> = {
+    early: 'زودهنگام',
+    on_time: 'به‌موقع',
+    late: 'دیرهنگام',
+  };
+  const raw = stringifyValue(value);
+  return labels[raw] ?? raw;
+}
+
+function planAdherenceLabel(value: unknown): string {
+  const labels: Record<string, string> = {
+    followed: 'پلن کامل رعایت شد',
+    partial: 'بخشی از پلن رعایت شد',
+    not_followed: 'پلن رعایت نشد',
+    no_plan: 'پلن از قبل ثبت نشده بود',
+  };
+  const raw = stringifyValue(value);
+  return labels[raw] ?? raw;
+}
+
+function mistakeLabel(value: TradeReviewMistakeTag): string {
+  const labels: Record<TradeReviewMistakeTag, string> = {
+    wrong_context: 'Context اشتباه',
+    early_entry: 'ورود زودهنگام',
+    late_entry: 'ورود دیرهنگام',
+    no_confirmation: 'ورود بدون تأیید',
+    fomo: 'FOMO / تعقیب قیمت',
+    revenge_trade: 'معامله انتقامی',
+    over_risk: 'ریسک بیش از قانون',
+    moved_stop: 'جابجایی استاپ خارج از قانون',
+    cut_winner_early: 'بستن زودهنگام معامله برنده',
+    ignored_plan: 'نادیده‌گرفتن پلن',
+  };
+  return labels[value];
 }
 
 function khanSetupLabel(value: unknown): string {
