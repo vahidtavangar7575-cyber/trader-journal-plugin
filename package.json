@@ -1,7 +1,7 @@
 {
 	"name": "trader-journal-plugin",
-	"version": "1.13.0",
-	"description": "Persian/RTL trading cockpit centered on the exact Khan Presentation flow, simplified always-selectable accounts, comprehensive Persian reports, risk engine, position sizing, screenshots, dashboard, and review.",
+	"version": "1.14.0",
+	"description": "Persian/RTL Khan trading cockpit with all six Presentation setups, direct screenshot workflow, broker-aware position sizing, Persian reports, risk engine, dashboard, and review.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
