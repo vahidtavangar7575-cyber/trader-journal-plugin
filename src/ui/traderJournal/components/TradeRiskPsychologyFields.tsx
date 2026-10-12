@@ -1,9 +1,11 @@
 import type { ChangeEvent } from 'react';
+import type TraderJournalPlugin from '../../../main';
 import type { TradeFormState } from '../form';
 import { calculateRiskAmount } from '../form';
 import { PositionSizeCalculator } from './PositionSizeCalculator';
 
 interface Props {
+	plugin: TraderJournalPlugin;
 	form: TradeFormState;
 	accountLinked: boolean;
 	accountCurrency?: string;
@@ -19,6 +21,7 @@ interface Props {
 }
 
 export function TradeRiskPsychologyFields({
+	plugin,
 	form,
 	accountLinked,
 	accountCurrency = 'USD',
@@ -41,14 +44,13 @@ export function TradeRiskPsychologyFields({
 			<section className="trader-journal-review-form">
 				<div className="trader-journal-review-form__header">
 					<h3>ریسک واقعی، حجم و وضعیت ذهنی قبل از معامله</h3>
-					<p>عدد پیشنهادی سیستم حکم نیست؛ عددی که واقعاً با آن وارد می‌شوی/شدی را اینجا ثبت کن تا بعداً انضباط واقعی قابل اندازه‌گیری باشد.</p>
+					<p>عدد پیشنهادی سیستم حکم نیست؛ عددی که واقعاً با آن وارد می‌شوی/شدی را ثبت کن تا انضباط واقعی قابل اندازه‌گیری باشد.</p>
 				</div>
 
 				<div className="trader-journal-form__grid">
 					<label className="trader-journal-field">
 						<span>{accountLinked ? 'سرمایه / Equity حساب ذخیره‌شده' : 'سرمایه / Equity'}</span>
-						<input type="number" min="0" step="any" value={form.accountEquity} placeholder="10000"
-							disabled={accountLinked}
+						<input type="number" min="0" step="any" value={form.accountEquity} placeholder="10000" disabled={accountLinked}
 							onChange={(event: ChangeEvent<HTMLInputElement>) => onAccountEquityChange(event.target.value)} />
 					</label>
 					<label className="trader-journal-field">
@@ -62,8 +64,7 @@ export function TradeRiskPsychologyFields({
 					</div>
 					<label className="trader-journal-field">
 						<span>حجم معامله</span>
-						<input type="number" min="0" step="any" value={form.positionSize} placeholder="0.10"
-							onChange={(event: ChangeEvent<HTMLInputElement>) => onPositionSizeChange(event.target.value)} />
+						<input type="number" min="0" step="any" value={form.positionSize} placeholder="0.10" onChange={(event: ChangeEvent<HTMLInputElement>) => onPositionSizeChange(event.target.value)} />
 					</label>
 					<label className="trader-journal-field">
 						<span>واحد حجم</span>
@@ -107,19 +108,14 @@ export function TradeRiskPsychologyFields({
 					</label>
 					<label className="trader-journal-field">
 						<span>میل به تعقیب قیمت (۰ تا ۱۰)</span>
-						<input type="number" min="0" max="10" step="1" value={form.urgeToChase} placeholder="0"
-							onChange={(event: ChangeEvent<HTMLInputElement>) => onUrgeToChaseChange(event.target.value)} />
+						<input type="number" min="0" max="10" step="1" value={form.urgeToChase} placeholder="0" onChange={(event: ChangeEvent<HTMLInputElement>) => onUrgeToChaseChange(event.target.value)} />
 					</label>
 				</div>
 
 				{showChaseWarning ? <div className="trader-journal-form__error">میل به تعقیب قیمت بالاست. قبل از ورود دوباره بررسی کن آیا Trigger هنوز معتبر است یا فقط از حرکت از دست‌رفته ناراحت شده‌ای.</div> : null}
 			</section>
 
-			<PositionSizeCalculator
-				form={form}
-				accountCurrency={accountCurrency}
-				onApplyPositionSize={onPositionSizeChange}
-			/>
+			<PositionSizeCalculator plugin={plugin} form={form} accountCurrency={accountCurrency} onApplyPositionSize={onPositionSizeChange} />
 		</>
 	);
 }
