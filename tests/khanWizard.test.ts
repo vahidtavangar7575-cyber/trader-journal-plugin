@@ -120,18 +120,18 @@ void test('Setup 6 maps decisional/decisional to 0.1 and extreme/extreme to 0.5'
 	assert.equal(extreme?.resultPage, 58);
 });
 
-void test('surprising cross-setup links are preserved because they are explicit in the Presentation', () => {
+void test('source cross-links are followed without silently renaming the originating setup', () => {
 	let setup2 = createKhanDecisionSnapshot();
 	setup2 = answerKhanDecision(setup2, 'idm-consumed');
 	setup2 = answerKhanDecision(setup2, 'no');
 	assert.equal(setup2.page, 18);
 	assert.equal(setup2.setup, 'setup-2');
 
-	let setup6 = createKhanDecisionSnapshot();
-	setup6 = answerKhanDecision(setup6, 'bos-close');
-	setup6 = answerKhanDecision(setup6, 'yes');
-	assert.equal(setup6.page, 53);
-	assert.equal(setup6.setup, 'setup-6');
+	let setup4SharedBranch = createKhanDecisionSnapshot();
+	setup4SharedBranch = answerKhanDecision(setup4SharedBranch, 'bos-close');
+	setup4SharedBranch = answerKhanDecision(setup4SharedBranch, 'yes');
+	assert.equal(setup4SharedBranch.page, 53);
+	assert.equal(setup4SharedBranch.setup, 'setup-4');
 
 	let setup2Bearish = createKhanDecisionSnapshotForSetup('setup-2');
 	setup2Bearish = answerKhanDecision(setup2Bearish, 'bearish');
