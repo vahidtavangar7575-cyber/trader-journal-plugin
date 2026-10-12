@@ -3,7 +3,7 @@ import test from 'node:test';
 import { buildPersianTradeReport, PERSIAN_REPORT_START, stripGeneratedPersianReport } from '../src/trades/persianReport';
 import type { TradeEntry } from '../src/trades/types';
 
-void test('Persian Khan report explains source path, account, risk and execution in readable labels', () => {
+void test('Persian Khan report explains source path, central journal, account, risk and execution in readable labels', () => {
   const trade: TradeEntry = {
     id: 'EURUSD-1',
     journal_type: 'backtest',
@@ -32,6 +32,27 @@ void test('Persian Khan report explains source path, account, risk and execution
     pnl_pct: 0.6,
     position_size: 0.3,
     position_unit: 'lot',
+    journal_details: {
+      session_day: 'سه‌شنبه لندن',
+      htf_structure: 'bullish',
+      structure_layer: 'major',
+      liquidity_event: 'pdh',
+      poi_category: 'of',
+      poi_type: 'decisional',
+      idm_state: 'consumed',
+      trigger_module: 'scob',
+      m15_context_complete: true,
+      m1_trigger_complete: true,
+      zone_consumed: true,
+      news_checked: true,
+      target_liquidity: 'PDH',
+      commission: 2.5,
+      net_pnl: 57.5,
+      mfe_r: 2.4,
+      mae_r: -0.3,
+      stop_management: 'unchanged',
+      exit_reason: 'tp',
+    },
     khan_setup: 'setup-5',
     khan_rule_version: 'presentation-58p-v1',
     khan_result_page: 48,
@@ -41,13 +62,32 @@ void test('Persian Khan report explains source path, account, risk and execution
       { page: 1, answerId: 'daily-level', answerLabel: 'در حال شکستن سقف و کف روزانه' },
       { page: 41, answerId: 'previous-day-high', answerLabel: 'در حال شکستن سقف روز قبل' },
     ],
+    review: {
+      schema_version: 1,
+      context: 'correct',
+      entry_timing: 'on_time',
+      plan_adherence: 'followed',
+      lesson: 'صبر برای تایید',
+      next_action: 'همین فرایند را تکرار کن',
+      reviewed_at: '2023-12-19T16:30:00',
+    },
   };
 
   const report = buildPersianTradeReport(trade);
   assert.match(report, /گزارش خودکار فارسی معامله/);
   assert.match(report, /ستاپ تشخیص‌داده‌شده: ستاپ 5 خان/);
   assert.match(report, /مسیر صفحات منبع: 1 ← 41 ← 42 ← 44 ← 48/);
-  assert.match(report, /وضعیت تطابق: مسیر تصمیم با لینک‌های داخلی خود فایل Presentation تطبیق و قفل شده است/);
+  assert.match(report, /وضعیت تطابق: مسیر تصمیم با لینک‌های داخلی خود فایل Presentation تطبیق داده شده است/);
+  assert.match(report, /ژورنال مرکزی — Context و شواهد تصمیم/);
+  assert.match(report, /ساختار HTF \/ M15: صعودی/);
+  assert.match(report, /خانواده POI: Order Flow/);
+  assert.match(report, /Trigger \/ Entry Module: SCOB/);
+  assert.match(report, /Context تایم M15\/HTF کامل: بله/);
+  assert.match(report, /MFE: ۲٫۴R/);
+  assert.match(report, /مدیریت استاپ: بدون تغییر/);
+  assert.match(report, /علت خروج: TP \/ هدف/);
+  assert.match(report, /بازبینی و تجربه/);
+  assert.match(report, /پایبندی به پلن: کامل/);
   assert.match(report, /نام حساب: بک‌تست سه‌ساله/);
   assert.match(report, /ریسک واقعی ثبت‌شده/);
   assert.match(report, /R واقعی: 2R/);
