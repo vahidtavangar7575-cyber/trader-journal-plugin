@@ -23,13 +23,16 @@ export function TradeAccountFields({
 	onAccountChange,
 	onAccountsChanged,
 }: Props) {
-	const accounts = plugin.settings.accounts.filter((account) => account.enabled || account.id === accountId);
+	// Account activation was confusing and could make a previously-saved account
+	// disappear from the trade ticket. A saved account is now always selectable.
+	// `enabled` is kept in the persisted schema only for backward compatibility.
+	const accounts = plugin.settings.accounts;
 	return (
 		<section className="trader-journal-review-form trader-journal-account-panel">
 			<div className="trader-journal-review-form__header trader-journal-account-panel__header">
 				<div>
 					<h3>حساب و موتور مدیریت سرمایه</h3>
-					<p>حساب را یک‌بار بساز؛ از این به بعد آخرین حساب انتخاب‌شده به‌صورت پیش‌فرض برمی‌گردد و موجودی بسته‌شدن معاملات را دنبال می‌کند.</p>
+					<p>حساب را فقط یک‌بار بساز. هر حساب ذخیره‌شده همیشه در این کشو قابل انتخاب است و آخرین حساب انتخاب‌شده برای دفعه بعد به خاطر سپرده می‌شود.</p>
 				</div>
 				<button type="button" onClick={() => new AccountManagerModal(plugin.app, plugin, onAccountsChanged).open()}>
 					مدیریت حساب‌ها و قوانین
