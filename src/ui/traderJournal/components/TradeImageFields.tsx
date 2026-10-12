@@ -40,18 +40,29 @@ export function TradeImageFields({
 		.filter(({ image }) => image.label !== M15_LABEL && image.label !== M1_LABEL);
 
 	return (
-		<section className="trader-journal-review-form trader-journal-image-workspace">
-			<div className="trader-journal-review-form__header trader-journal-image-workspace__header">
-				<div>
+		<section className="trader-journal-review-form trader-journal-image-workspace" style={{ gap: '14px' }}>
+			<div
+				className="trader-journal-review-form__header trader-journal-image-workspace__header"
+				style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'flex-start', justifyContent: 'space-between' }}
+			>
+				<div style={{ minWidth: 0, flex: '1 1 420px' }}>
 					<h3>تصاویر تصمیم معامله</h3>
-					<p>
+					<p style={{ lineHeight: 1.65, overflowWrap: 'anywhere' }}>
 						دو تصویر اصلی را مستقیم از کامپیوتر انتخاب یا داخل کادر رها کن. فایل‌ها خودکار در پوشه‌ی _attachments همان ژورنال، بر اساس نماد و تاریخ، ذخیره می‌شوند.
 					</p>
 				</div>
-				<span className="trader-journal-image-workspace__badge">۲ تصویر اصلی</span>
+				<span
+					className="trader-journal-image-workspace__badge"
+					style={{ border: '1px solid var(--interactive-accent)', borderRadius: '999px', padding: '4px 9px', color: 'var(--text-accent)', fontSize: 'var(--font-ui-smaller)', fontWeight: 700 }}
+				>
+					۲ تصویر اصلی
+				</span>
 			</div>
 
-			<div className="trader-journal-image-slot-grid">
+			<div
+				className="trader-journal-image-slot-grid"
+				style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '12px', minWidth: 0 }}
+			>
 				<DecisionImageSlot
 					title="تصویر 15 دقیقه / HTF"
 					description={isKhanTrade
@@ -78,9 +89,15 @@ export function TradeImageFields({
 				/>
 			</div>
 
-			<details className="trader-journal-image-supplemental" open={supplementalImages.length > 0}>
-				<summary>تصاویر تکمیلی / تصویر خروج</summary>
-				<p>برای تصویر بعد از خروج یا تصویر اضافه، می‌توانی فایل را Paste کنی یا لینک/مسیر فایل داخل Vault را وارد کنی و Enter بزنی.</p>
+			<details
+				className="trader-journal-image-supplemental"
+				open={supplementalImages.length > 0}
+				style={{ border: '1px solid var(--background-modifier-border)', borderRadius: '10px', padding: '10px 12px', background: 'var(--background-primary)' }}
+			>
+				<summary style={{ cursor: 'pointer', fontWeight: 700 }}>تصاویر تکمیلی / تصویر خروج</summary>
+				<p style={{ marginBlock: '8px', lineHeight: 1.6 }}>
+					برای تصویر بعد از خروج یا تصویر اضافه، می‌توانی فایل را Paste کنی یا لینک/مسیر فایل داخل Vault را وارد کنی و Enter بزنی.
+				</p>
 				<input
 					type="text"
 					value={imageInput}
@@ -89,13 +106,14 @@ export function TradeImageFields({
 					onKeyDown={onImageInputKeyDown}
 					onPaste={onImagePaste}
 					disabled={isPastingImage}
+					style={{ width: '100%' }}
 				/>
 				{supplementalImages.length > 0 ? (
-					<div className="trader-journal-image-preview-row trader-journal-image-preview-row--supplemental">
+					<div className="trader-journal-image-preview-row trader-journal-image-preview-row--supplemental" style={{ marginTop: '10px' }}>
 						{supplementalImages.map(({ image, index }) => (
 							<div className="trader-journal-image-preview" key={`${image.value}-${index}`}>
 								<button type="button" className="trader-journal-image-preview__remove" aria-label={tr('image.remove', { index: index + 1 })} onClick={() => onRemoveImage(index)}>×</button>
-								<button type="button" className="trader-journal-image-preview__open" aria-label="باز کردن تصویر" onClick={() => void openImage(plugin, image)}>↗</button>
+								<button type="button" aria-label="باز کردن تصویر" onClick={() => void openImage(plugin, image)} style={{ position: 'absolute', top: '4px', left: '4px', zIndex: 2, width: '22px', minWidth: '22px', height: '22px', minHeight: '22px', padding: 0, borderRadius: '50%' }}>↗</button>
 								<ImagePreview plugin={plugin} image={image} />
 							</div>
 						))}
@@ -143,13 +161,23 @@ function DecisionImageSlot({
 			className={`trader-journal-decision-image-slot${image ? ' is-filled' : ''}`}
 			onDragOver={(event) => event.preventDefault()}
 			onDrop={handleDrop}
+			style={{
+				display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0, minHeight: '230px',
+				border: `1px solid ${image ? 'var(--color-green)' : 'var(--background-modifier-border)'}`,
+				borderRadius: '12px', padding: '12px', background: image ? 'color-mix(in srgb, var(--color-green) 5%, var(--background-primary))' : 'var(--background-primary)',
+			}}
 		>
-			<div className="trader-journal-decision-image-slot__head">
-				<div>
-					<strong>{title}</strong>
-					<small>{description}</small>
+			<div className="trader-journal-decision-image-slot__head" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+				<div style={{ flex: '1 1 180px', minWidth: 0 }}>
+					<strong style={{ display: 'block', fontSize: '1.02em' }}>{title}</strong>
+					<small style={{ display: 'block', marginTop: '4px', color: 'var(--text-muted)', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{description}</small>
 				</div>
-				<span className={`trader-journal-decision-image-slot__state${image ? ' is-ready' : ''}`}>{image ? 'ثبت شد ✓' : 'در انتظار'}</span>
+				<span
+					className={`trader-journal-decision-image-slot__state${image ? ' is-ready' : ''}`}
+					style={{ borderRadius: '999px', padding: '3px 8px', fontSize: 'var(--font-ui-smaller)', fontWeight: 700, background: image ? 'color-mix(in srgb, var(--color-green) 14%, transparent)' : 'var(--background-secondary)', color: image ? 'var(--color-green)' : 'var(--text-muted)' }}
+				>
+					{image ? 'ثبت شد ✓' : 'در انتظار'}
+				</span>
 			</div>
 
 			<input
@@ -166,18 +194,24 @@ function DecisionImageSlot({
 
 			{image ? (
 				<>
-					<div className="trader-journal-decision-image-slot__preview">
+					<div className="trader-journal-image-preview" style={{ width: '100%', minWidth: 0, maxWidth: '100%', margin: 0 }}>
 						<ImagePreview plugin={plugin} image={image} />
 					</div>
-					<div className="trader-journal-decision-image-slot__actions">
-						<button type="button" onClick={() => inputRef.current?.click()} disabled={isBusy}>تعویض تصویر</button>
+					<div className="trader-journal-decision-image-slot__actions" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '6px' }}>
+						<button type="button" onClick={() => inputRef.current?.click()} disabled={isBusy}>تعویض</button>
 						<button type="button" onClick={() => void openImage(plugin, image)}>باز کردن</button>
 						<button type="button" className="mod-warning" onClick={() => onRemoveImage(imageIndex)}>حذف</button>
 					</div>
 				</>
 			) : (
-				<button type="button" className="trader-journal-decision-image-slot__picker mod-cta" disabled={isBusy} onClick={() => inputRef.current?.click()}>
-					<span className="trader-journal-decision-image-slot__picker-icon">＋</span>
+				<button
+					type="button"
+					className="trader-journal-decision-image-slot__picker mod-cta"
+					disabled={isBusy}
+					onClick={() => inputRef.current?.click()}
+					style={{ display: 'flex', flex: '1 1 auto', minHeight: '150px', width: '100%', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px', border: '2px dashed color-mix(in srgb, var(--interactive-accent) 65%, var(--background-modifier-border))', borderRadius: '10px', whiteSpace: 'normal', lineHeight: 1.4, textAlign: 'center' }}
+				>
+					<span className="trader-journal-decision-image-slot__picker-icon" style={{ fontSize: '28px', lineHeight: 1 }}>＋</span>
 					<strong>{isBusy ? 'در حال ذخیره تصویر…' : 'انتخاب تصویر از کامپیوتر'}</strong>
 					<small>یا فایل تصویر را روی این کادر Drag & Drop کن</small>
 				</button>
