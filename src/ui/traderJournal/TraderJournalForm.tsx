@@ -24,6 +24,7 @@ import { TradeExecutionFields } from './components/TradeExecutionFields';
 import { TradeFormActions } from './components/TradeFormActions';
 import { TradeIdentityFields } from './components/TradeIdentityFields';
 import { TradeImageFields } from './components/TradeImageFields';
+import { TradeJournalCoreFields } from './components/TradeJournalCoreFields';
 import { TradeRiskPsychologyFields } from './components/TradeRiskPsychologyFields';
 import { TradeSetupFields } from './components/TradeSetupFields';
 import { useTradeAttachments } from './hooks/useTradeAttachments';
@@ -38,13 +39,7 @@ export interface TraderJournalFormProps {
 	closeModal: () => void;
 }
 
-export function TraderJournalForm({
-	plugin,
-	journalType,
-	initialTrade,
-	targetFilePath,
-	closeModal,
-}: TraderJournalFormProps) {
+export function TraderJournalForm({ plugin, journalType, initialTrade, targetFilePath, closeModal }: TraderJournalFormProps) {
 	const [form, setForm] = useState<TradeFormState>(() => createInitialTradeForm(plugin, initialTrade, journalType));
 	const [error, setError] = useState('');
 	const [journalRevision, setJournalRevision] = useState(0);
@@ -57,14 +52,7 @@ export function TraderJournalForm({
 	const usesExecutionLifecycle = isLiveJournal || isKhanTrade;
 	const isExecutionTradeClosed = usesExecutionLifecycle && isExecutionFormClosing(form);
 
-	const { isLoadingPlans, isLoadingSetups, planOptions, setupOptions } = useTradeReferenceData({
-		form,
-		initialTrade,
-		isEditing,
-		isLiveJournal,
-		plugin,
-		setForm,
-	});
+	const { isLoadingPlans, isLoadingSetups, planOptions, setupOptions } = useTradeReferenceData({ form, initialTrade, isEditing, isLiveJournal, plugin, setForm });
 	const {
 		beginCommit,
 		commit: commitAttachments,
@@ -87,8 +75,7 @@ export function TraderJournalForm({
 	);
 	const allTrades = useMemo(() => {
 		void journalRevision;
-		return Object.values(plugin.journalDataService.getSnapshot().trades.daysByDate)
-			.flatMap((day) => day.trades.map((entry) => entry.trade));
+		return Object.values(plugin.journalDataService.getSnapshot().trades.daysByDate).flatMap((day) => day.trades.map((entry) => entry.trade));
 	}, [journalRevision, plugin]);
 	const tradeDate = getDateTimeDatePart(form.openedAt) || getTodayDateInput();
 	const khanRiskCap = numericValue(initialTrade?.khan_approved_risk_pct ?? initialTrade?.khan_risk_pct);
@@ -121,22 +108,16 @@ export function TraderJournalForm({
 
 	const holdingTime = useMemo(() => calculateHoldingTime(form.openedAt, form.closedAt), [form.openedAt, form.closedAt]);
 	const plannedRr = useMemo(
-		() => usesExecutionLifecycle
-			? calculateLiveRr(form.side, form.entryPrice, form.stopLoss, form.takeProfit)
-			: plugin.settings.riskPolicy.targetR,
+		() => usesExecutionLifecycle ? calculateLiveRr(form.side, form.entryPrice, form.stopLoss, form.takeProfit) : plugin.settings.riskPolicy.targetR,
 		[form.entryPrice, form.side, form.stopLoss, form.takeProfit, plugin.settings.riskPolicy.targetR, usesExecutionLifecycle],
 	);
 	const executionRr = useMemo(
-		() => isExecutionTradeClosed
-			? calculateLiveRr(form.side, form.entryPrice, form.stopLoss, form.exitPrice)
-			: null,
+		() => isExecutionTradeClosed ? calculateLiveRr(form.side, form.entryPrice, form.stopLoss, form.exitPrice) : null,
 		[form.entryPrice, form.exitPrice, form.side, form.stopLoss, isExecutionTradeClosed],
 	);
 	const executionResult = executionRr === null ? null : getTradeResultFromRr(executionRr);
 	const actualRiskPct = numericValue(form.riskPct);
-	const ruleWarnings = riskEvaluation
-		? buildRiskRuleWarnings(riskEvaluation, actualRiskPct, plannedRr)
-		: [];
+	const ruleWarnings = riskEvaluation ? buildRiskRuleWarnings(riskEvaluation, actualRiskPct, plannedRr) : [];
 	const tr = getTranslator(plugin.settings.language);
 	const { isSaving, saveTrade } = useTradeSave({
 		beginAttachmentCommit: beginCommit,
@@ -171,28 +152,17 @@ export function TraderJournalForm({
 		setForm((currentForm) => ({
 			...currentForm,
 			openedAt,
-			planId:
-				isLiveJournal && !isEditing && currentForm.planId &&
-				!isSelectedPlanCompatible(currentForm.planId, currentForm.symbol, openedAt)
-					? ''
-					: currentForm.planId,
-			closedAt:
-				journalType === 'backtest' && !usesExecutionLifecycle
-					? syncClosedAtDate(openedAt, currentForm.openedAt, currentForm.closedAt)
-					: currentForm.closedAt,
+			planId: isLiveJournal && !isEditing && currentForm.planId && !isSelectedPlanCompatible(currentForm.planId, currentForm.symbol, openedAt) ? '' : currentForm.planId,
+			closedAt: journalType === 'backtest' && !usesExecutionLifecycle ? syncClosedAtDate(openedAt, currentForm.openedAt, currentForm.closedAt) : currentForm.closedAt,
 		}));
 	}
 
 	function updateSymbol(symbol: string) {
 		setForm((currentForm) => {
 			const selectedSetup = setupOptions.find((setup) => setup.id === currentForm.setupId);
-			const planId = isLiveJournal && !isEditing && currentForm.planId &&
-				!isSelectedPlanCompatible(currentForm.planId, symbol, currentForm.openedAt) ? '' : currentForm.planId;
-			const keepHistoricalSetup = isEditing && normalizeSymbol(symbol) === normalizeSymbol(stringifyValue(initialTrade?.symbol)) &&
-				currentForm.setupId === stringifyValue(initialTrade?.setup_id);
-			if (!selectedSetup || isSetupAvailableForSymbol(selectedSetup, symbol) || keepHistoricalSetup) {
-				return { ...currentForm, symbol, planId };
-			}
+			const planId = isLiveJournal && !isEditing && currentForm.planId && !isSelectedPlanCompatible(currentForm.planId, symbol, currentForm.openedAt) ? '' : currentForm.planId;
+			const keepHistoricalSetup = isEditing && normalizeSymbol(symbol) === normalizeSymbol(stringifyValue(initialTrade?.symbol)) && currentForm.setupId === stringifyValue(initialTrade?.setup_id);
+			if (!selectedSetup || isSetupAvailableForSymbol(selectedSetup, symbol) || keepHistoricalSetup) return { ...currentForm, symbol, planId };
 			return { ...currentForm, symbol, planId: '', setupId: '', setup: '' };
 		});
 	}
@@ -205,15 +175,8 @@ export function TraderJournalForm({
 
 	function updatePlan(planId: string) {
 		const plan = planOptions.find((option) => option.id === planId);
-		const matchingSetup = plan?.setupId
-			? setupOptions.find((setup) => setup.id === plan.setupId)
-			: setupOptions.find((setup) => setup.name.toLocaleLowerCase() === plan?.setup.toLocaleLowerCase());
-		setForm((currentForm) => ({
-			...currentForm,
-			planId,
-			setupId: plan ? matchingSetup?.id ?? plan.setupId : currentForm.setupId,
-			setup: plan ? matchingSetup?.name ?? plan.setup : currentForm.setup,
-		}));
+		const matchingSetup = plan?.setupId ? setupOptions.find((setup) => setup.id === plan.setupId) : setupOptions.find((setup) => setup.name.toLocaleLowerCase() === plan?.setup.toLocaleLowerCase());
+		setForm((currentForm) => ({ ...currentForm, planId, setupId: plan ? matchingSetup?.id ?? plan.setupId : currentForm.setupId, setup: plan ? matchingSetup?.name ?? plan.setup : currentForm.setup }));
 	}
 
 	function updateSetup(setupId: string) {
@@ -224,13 +187,10 @@ export function TraderJournalForm({
 	function updateAccount(accountId: string) {
 		const account = plugin.settings.accounts.find((item) => item.id === accountId) ?? null;
 		setRiskAuto(true);
-		setForm((current) => ({
-			...current,
-			accountId,
-			accountEquity: account ? String(account.currentBalance) : '',
-			riskPct: '',
-		}));
+		setForm((current) => ({ ...current, accountId, accountEquity: account ? String(account.currentBalance) : '', riskPct: '' }));
 		plugin.settings.lastSelectedAccountId = accountId;
+		if (account?.type === 'backtest') plugin.settings.lastBacktestAccountId = accountId;
+		else if (account) plugin.settings.lastTradingAccountId = accountId;
 		void plugin.saveSettings();
 	}
 
@@ -254,9 +214,7 @@ export function TraderJournalForm({
 		void saveTrade();
 	};
 
-	const khanTicketTitle = isEditing
-		? (isExecutionTradeClosed ? 'بستن / بازبینی معامله خان' : 'ویرایش بلیت باز معامله خان')
-		: 'بلیت اجرای معامله خان';
+	const khanTicketTitle = isEditing ? (isExecutionTradeClosed ? 'بستن / بازبینی معامله خان' : 'ویرایش بلیت باز معامله خان') : 'بلیت اجرای معامله خان';
 
 	return (
 		<form className="trader-journal-modal trader-journal-form" onSubmit={handleSubmit}>
@@ -272,20 +230,12 @@ export function TraderJournalForm({
 							? 'نتیجه و R واقعی از انتخاب سود/ضرر و قیمت خروج محاسبه می‌شود؛ بعد از ذخیره، موجودی همان حساب نیز دقیق به‌روز می‌شود.'
 							: isEditing
 								? 'تا قبل از مشخص‌شدن نتیجه هیچ Exit یا زمان خروجی لازم نیست. وقتی معامله تمام شد، پایین همین فرم «ضرر / SL» یا «سود» را انتخاب کن.'
-								: 'حساب، ریسک، Entry/SL/TP، حجم و در صورت امکان دو تصویر را ثبت کن و معامله را باز ذخیره کن. نتیجه بعداً روی همین رکورد تکمیل می‌شود.'}</p>
+								: 'حساب، ریسک، Entry/SL/TP، حجم، Context ژورنال و دو تصویر را ثبت کن و معامله را باز ذخیره کن. نتیجه بعداً روی همین رکورد تکمیل می‌شود.'}</p>
 					</div>
 				</section>
 			) : null}
 
-			<TradeAccountFields
-				plugin={plugin}
-				accountId={form.accountId}
-				selectedAccount={selectedAccount}
-				evaluation={riskEvaluation}
-				ruleWarnings={ruleWarnings}
-				onAccountChange={updateAccount}
-				onAccountsChanged={() => setAccountRevision((value) => value + 1)}
-			/>
+			<TradeAccountFields plugin={plugin} accountId={form.accountId} selectedAccount={selectedAccount} evaluation={riskEvaluation} ruleWarnings={ruleWarnings} onAccountChange={updateAccount} onAccountsChanged={() => setAccountRevision((value) => value + 1)} />
 
 			<div className="trader-journal-form__grid">
 				<TradeIdentityFields
@@ -328,8 +278,7 @@ export function TraderJournalForm({
 				/>
 			</div>
 
-			<TradeSetupFields form={form} isLiveJournal={isLiveJournal} isLoadingSetups={isLoadingSetups} setupOptions={setupOptions} tr={tr}
-				onSetupChange={updateSetup} onTagsChange={(tags) => updateField('tags', tags)} />
+			<TradeSetupFields form={form} isLiveJournal={isLiveJournal} isLoadingSetups={isLoadingSetups} setupOptions={setupOptions} tr={tr} onSetupChange={updateSetup} onTagsChange={(tags) => updateField('tags', tags)} />
 
 			<TradeRiskPsychologyFields
 				form={form}
@@ -346,13 +295,15 @@ export function TraderJournalForm({
 				onUrgeToChaseChange={(value) => updateField('urgeToChase', value)}
 			/>
 
+			<TradeJournalCoreFields value={form.journal} isClosed={isExecutionTradeClosed} onChange={(journal) => updateField('journal', journal)} />
+
 			{isKhanTrade ? (
 				<section className="trader-journal-review-form">
 					<div className="trader-journal-review-form__header"><h3>پروتکل تصویر معامله خان</h3><p>دو تصویر اصلی را از کادرهای انتخاب فایل پایین بگیر؛ تصاویر باید تصمیم را بازسازی کنند، نه فقط نتیجه را زیبا نشان دهند.</p></div>
 					<ol>
 						<li><b>قبل از ورود — M15/HTF:</b> ساختار، POI، نقدینگی هدف، PDH/PDL یا Session context را کامل نشان بده.</li>
 						<li><b>قبل از ورود — M1/LTF:</b> IDM/CHOCH/Flip/OF/SCOB، محل Entry، SL و Target را نشان بده.</li>
-						<li><b>بعد از خروج — M1/LTF:</b> هنگام نهایی‌کردن نتیجه، نقطه اجرای واقعی و علت خروج را می‌توانی به‌عنوان تصویر تکمیلی اضافه کنی.</li>
+						<li><b>بعد از خروج — M1/LTF:</b> هنگام نهایی‌کردن نتیجه، نقطه اجرای واقعی و علت خروج را به‌عنوان تصویر تکمیلی اضافه کن.</li>
 					</ol>
 				</section>
 			) : null}
