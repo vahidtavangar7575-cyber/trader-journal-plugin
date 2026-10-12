@@ -3,7 +3,7 @@ import test from 'node:test';
 import { buildPersianTradeReport, PERSIAN_REPORT_START, stripGeneratedPersianReport } from '../src/trades/persianReport';
 import type { TradeEntry } from '../src/trades/types';
 
-void test('Persian Khan report explains source path, account, risk and execution in readable labels', () => {
+void test('Persian Khan report explains source path, account, risk, execution and review in readable labels', () => {
   const trade: TradeEntry = {
     id: 'EURUSD-1',
     journal_type: 'backtest',
@@ -41,16 +41,32 @@ void test('Persian Khan report explains source path, account, risk and execution
       { page: 1, answerId: 'daily-level', answerLabel: 'در حال شکستن سقف و کف روزانه' },
       { page: 41, answerId: 'previous-day-high', answerLabel: 'در حال شکستن سقف روز قبل' },
     ],
+    review: {
+      schema_version: 1,
+      context: 'correct',
+      entry_timing: 'on_time',
+      plan_adherence: 'followed',
+      mistake_tags: ['fomo'],
+      what_went_well: 'صبر تا تأیید',
+      lesson: 'ورود فقط بعد از Trigger',
+      next_action: 'همین فرایند تکرار شود',
+      reviewed_at: '2026-10-12T10:00:00.000Z',
+    },
   };
 
   const report = buildPersianTradeReport(trade);
   assert.match(report, /گزارش خودکار فارسی معامله/);
-  assert.match(report, /ستاپ تشخیص‌داده‌شده: ستاپ 5 خان/);
+  assert.match(report, /ستاپ ثبت‌شده: ستاپ 5 خان/);
   assert.match(report, /مسیر صفحات منبع: 1 ← 41 ← 42 ← 44 ← 48/);
-  assert.match(report, /وضعیت تطابق: مسیر تصمیم با لینک‌های داخلی خود فایل Presentation تطبیق و قفل شده است/);
+  assert.match(report, /وضعیت تطابق: مسیر تصمیم از گراف منبع Presentation ثبت شده/);
   assert.match(report, /نام حساب: بک‌تست سه‌ساله/);
-  assert.match(report, /ریسک واقعی ثبت‌شده/);
+  assert.match(report, /ریسک واقعی اجراشده/);
   assert.match(report, /R واقعی: 2R/);
+  assert.match(report, /ارزیابی کیفیت اجرا و تجربه/);
+  assert.match(report, /کیفیت Context: درست/);
+  assert.match(report, /زمان‌بندی ورود: به‌موقع/);
+  assert.match(report, /FOMO \/ تعقیب قیمت/);
+  assert.match(report, /درس اصلی معامله: ورود فقط بعد از Trigger/);
   assert.doesNotMatch(report, /khan_setup:/);
   assert.doesNotMatch(report, /risk_rule_recommended_pct:/);
 });
