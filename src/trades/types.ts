@@ -42,6 +42,36 @@ export interface TradeReview {
 	reviewed_at: string;
 }
 
+/**
+ * Structured fields imported from Vahid's central journal model.
+ * Internal keys remain stable in English; all user-facing rendering is Persian.
+ */
+export interface TradeJournalDetails {
+	session_day?: string;
+	htf_structure?: string;
+	structure_layer?: string;
+	liquidity_event?: string;
+	poi_category?: string;
+	poi_type?: string;
+	idm_state?: string;
+	trigger_module?: string;
+	m15_context_complete?: boolean;
+	m1_trigger_complete?: boolean;
+	zone_consumed?: boolean;
+	news_checked?: boolean;
+	target_liquidity?: string;
+	m15_zone_boundary?: string;
+	commission?: number;
+	swap?: number;
+	gross_pnl?: number;
+	net_pnl?: number;
+	mfe_r?: number;
+	mae_r?: number;
+	stop_management?: string;
+	stop_widened?: boolean;
+	exit_reason?: string;
+}
+
 export interface TradeEntry {
 	schemaVersion?: number;
 	id?: string;
@@ -86,6 +116,7 @@ export interface TradeEntry {
 	risk_rule_week_base_pct?: number | string;
 	risk_rule_violation?: boolean;
 	risk_rule_warnings?: string[];
+	journal_details?: TradeJournalDetails;
 	images?: Array<TradeImage | string> | string;
 	notes?: string;
 	opened_at?: string;
