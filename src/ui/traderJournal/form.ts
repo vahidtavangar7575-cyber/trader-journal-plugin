@@ -1,6 +1,8 @@
 import type { TradePlanOption } from '../../plans/types';
 import { normalizeSymbol } from '../../settings';
 import { formatTags, normalizeTradeImages, stringifyValue } from '../../trades/format';
+import { createTradeJournalCoreState } from '../../trades/journalCore';
+import type { TradeJournalCoreState } from '../../trades/journalCore';
 import { stripGeneratedPersianReport } from '../../trades/persianReport';
 import { calculateHoldingTime } from '../../trades/storage';
 import type {
@@ -44,6 +46,7 @@ export interface TradeFormState {
 	marketArrivalContext: string;
 	preTradeEmotion: PreTradeEmotion;
 	urgeToChase: string;
+	journal: TradeJournalCoreState;
 	images: TradeImage[];
 	notes: string;
 	openedAt: string;
@@ -84,6 +87,7 @@ export function createInitialTradeForm(
 		marketArrivalContext: stringifyValue(initialTrade?.market_arrival_context),
 		preTradeEmotion: normalizePreTradeEmotion(initialTrade?.pre_trade_emotion),
 		urgeToChase: stringifyValue(initialTrade?.urge_to_chase),
+		journal: createTradeJournalCoreState(initialTrade?.journal_details),
 		images: normalizeTradeImages(initialTrade?.images),
 		notes: stripGeneratedPersianReport(initialTrade?.notes),
 		openedAt: toDateTimeLocalInput(openedAt),
@@ -97,19 +101,10 @@ export function formatTradeTagsInput(value: unknown): string {
 }
 
 export function parseTradeTags(value: string): string[] {
-	return [...new Set(
-		value
-			.split(',')
-			.map((tag) => tag.trim().replace(/^#/, ''))
-			.filter(Boolean),
-	)];
+	return [...new Set(value.split(',').map((tag) => tag.trim().replace(/^#/, '')).filter(Boolean))];
 }
 
-export function isTradePlanOptionCompatible(
-	plan: TradePlanOption,
-	symbol: string,
-	date: string,
-): boolean {
+export function isTradePlanOptionCompatible(plan: TradePlanOption, symbol: string, date: string): boolean {
 	const normalizedSymbol = normalizeSymbol(symbol);
 	if (!normalizedSymbol || normalizeSymbol(plan.symbol) !== normalizedSymbol) return false;
 	if (!DATE_KEY_PATTERN.test(date) || !DATE_KEY_PATTERN.test(plan.startDate) || date < plan.startDate) return false;
@@ -164,9 +159,7 @@ export function validateTradeForm(
 		}
 	}
 
-	if (!form.openedAt || (!usesExecutionLifecycle && journalType === 'backtest' && !form.closedAt)) {
-		return tr('error.openedClosedRequired');
-	}
+	if (!form.openedAt || (!usesExecutionLifecycle && journalType === 'backtest' && !form.closedAt)) return tr('error.openedClosedRequired');
 	if (form.closedAt && calculateHoldingTime(form.openedAt, form.closedAt) === null) return tr('error.closedAfterOpened');
 
 	if (journalType === 'live' && form.planId) {
@@ -219,13 +212,16 @@ export function calculateRiskAmount(accountEquity: string, riskPct: string): num
 function resolveInitialAccountId(plugin: TraderJournalPlugin, initialTrade: TradeEntry | undefined, journalType: TradeJournalType): string {
 	const historicalId = stringifyValue(initialTrade?.account_id);
 	if (historicalId && plugin.settings.accounts.some((account) => account.id === historicalId)) return historicalId;
-	const compatible = (id: string) => {
-		const account = plugin.settings.accounts.find((item) => item.id === id && item.enabled);
+
+	const wantedType = (accountId: string) => {
+		const account = plugin.settings.accounts.find((item) => item.id === accountId);
 		if (!account) return false;
 		return journalType === 'backtest' ? account.type === 'backtest' : account.type !== 'backtest';
 	};
-	if (compatible(plugin.settings.lastSelectedAccountId)) return plugin.settings.lastSelectedAccountId;
-	return plugin.settings.accounts.find((account) => account.enabled && (journalType === 'backtest' ? account.type === 'backtest' : account.type !== 'backtest'))?.id ?? '';
+	const preferred = journalType === 'backtest' ? plugin.settings.lastBacktestAccountId : plugin.settings.lastTradingAccountId;
+	if (wantedType(preferred)) return preferred;
+	if (wantedType(plugin.settings.lastSelectedAccountId)) return plugin.settings.lastSelectedAccountId;
+	return plugin.settings.accounts.find((account) => journalType === 'backtest' ? account.type === 'backtest' : account.type !== 'backtest')?.id ?? '';
 }
 
 function normalizePositionUnit(value: unknown): TradePositionUnit {
