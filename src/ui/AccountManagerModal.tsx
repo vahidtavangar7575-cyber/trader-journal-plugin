@@ -37,15 +37,16 @@ function emptyDraft(): DraftAccount {
 }
 
 function AccountManagerContent({ plugin, onChanged }: Props) {
-	const [accounts, setAccounts] = useState(() => plugin.settings.accounts.map((account) => ({ ...account })));
+	const [accounts, setAccounts] = useState(() => plugin.settings.accounts.map((account) => ({ ...account, enabled: true })));
 	const [draft, setDraft] = useState<DraftAccount>(emptyDraft);
 	const [policy, setPolicy] = useState<RiskPolicySettings>(() => ({ ...plugin.settings.riskPolicy }));
 	const [message, setMessage] = useState('');
 
 	const persistAccounts = async (nextAccounts: TradingAccount[]) => {
-		setAccounts(nextAccounts);
-		plugin.settings.accounts = nextAccounts;
-		if (plugin.settings.lastSelectedAccountId && !nextAccounts.some((account) => account.id === plugin.settings.lastSelectedAccountId)) {
+		const normalized = nextAccounts.map((account) => ({ ...account, enabled: true }));
+		setAccounts(normalized);
+		plugin.settings.accounts = normalized;
+		if (plugin.settings.lastSelectedAccountId && !normalized.some((account) => account.id === plugin.settings.lastSelectedAccountId)) {
 			plugin.settings.lastSelectedAccountId = '';
 		}
 		await plugin.saveSettings();
@@ -69,7 +70,7 @@ function AccountManagerContent({ plugin, onChanged }: Props) {
 			currency: draft.currency.trim().toUpperCase() || 'USD',
 			initialBalance,
 			currentBalance,
-			enabled: existing?.enabled ?? true,
+			enabled: true,
 			createdAt: existing?.createdAt ?? now,
 			updatedAt: now,
 		};
@@ -77,8 +78,12 @@ function AccountManagerContent({ plugin, onChanged }: Props) {
 			? accounts.map((item) => item.id === existing.id ? account : item)
 			: [...accounts, account];
 		await persistAccounts(next);
+		if (!plugin.settings.lastSelectedAccountId) {
+			plugin.settings.lastSelectedAccountId = account.id;
+			await plugin.saveSettings();
+		}
 		setDraft(emptyDraft());
-		setMessage('حساب ذخیره شد.');
+		setMessage('حساب ذخیره شد و از همین حالا در فرم معامله قابل انتخاب است.');
 	};
 
 	const editAccount = (account: TradingAccount) => {
@@ -97,12 +102,7 @@ function AccountManagerContent({ plugin, onChanged }: Props) {
 	const removeAccount = async (account: TradingAccount) => {
 		await persistAccounts(accounts.filter((item) => item.id !== account.id));
 		if (draft.id === account.id) setDraft(emptyDraft());
-	};
-
-	const toggleAccount = async (account: TradingAccount) => {
-		await persistAccounts(accounts.map((item) => item.id === account.id
-			? { ...item, enabled: !item.enabled, updatedAt: new Date().toISOString() }
-			: item));
+		setMessage('حساب حذف شد. معامله‌های تاریخی قبلی همچنان شناسه حساب ثبت‌شده خود را حفظ می‌کنند.');
 	};
 
 	const savePolicy = async () => {
@@ -126,20 +126,20 @@ function AccountManagerContent({ plugin, onChanged }: Props) {
 					<div>
 						<strong>Accounts & Risk Engine</strong>
 						<h2>حساب‌ها و قوانین مدیریت سرمایه</h2>
-						<p>هر معامله به یک حساب متصل می‌شود؛ موجودی حساب بعد از ثبت نتیجه به‌روز می‌شود و حساب بک‌تست از محدودیت روزانه مستثناست.</p>
+						<p>هر حسابی که ذخیره می‌کنی فوراً قابل استفاده است؛ دیگر مرحله «فعال‌سازی حساب» وجود ندارد. موجودی بعد از ثبت نتیجه روی همان حساب به‌روز می‌شود و حساب بک‌تست از محدودیت روزانه مستثناست.</p>
 					</div>
 				</div>
 			</header>
 
 			<section className="trader-journal-review-form account-manager__section">
 				<div className="trader-journal-dashboard__section-header account-manager__section-title">
-					<div><h3>حساب‌های ذخیره‌شده</h3><p>یک‌بار بساز، بعد فقط از کشوی حساب‌ها انتخاب کن.</p></div>
+					<div><h3>حساب‌های ذخیره‌شده</h3><p>یک‌بار بساز؛ بعد از کشوی حساب‌ها انتخاب کن. آخرین حساب سازگار به‌صورت خودکار برای دفعه بعد برمی‌گردد.</p></div>
 					<span>{accounts.length} حساب</span>
 				</div>
 				<div className="trader-journal-dashboard__plan-grid account-manager__cards">
-					{accounts.length === 0 ? <div className="trader-journal-dashboard__empty">هنوز حسابی نساخته‌ای. حساب بک‌تست، دمو، پراپ یا مسابقه را از فرم پایین اضافه کن.</div> : null}
+					{accounts.length === 0 ? <div className="trader-journal-dashboard__empty">هنوز حسابی نساخته‌ای. حساب بک‌تست، دمو، پراپ، مسابقه یا واقعی را از فرم پایین اضافه کن.</div> : null}
 					{accounts.map((account) => (
-						<article className={`trader-journal-dashboard-plan-card account-card${account.enabled ? '' : ' is-disabled'}`} key={account.id}>
+						<article className="trader-journal-dashboard-plan-card account-card" key={account.id}>
 							<div className="trader-journal-dashboard-plan-card__header account-card__head">
 								<div className="trader-journal-dashboard-plan-card__identity">
 									<strong>{account.name}</strong>
@@ -149,11 +149,10 @@ function AccountManagerContent({ plugin, onChanged }: Props) {
 							</div>
 							<div className="trader-journal-dashboard-plan-card__details account-card__meta">
 								<span>موجودی شروع: {formatMoney(account.initialBalance, account.currency)}</span>
-								<span>{account.enabled ? 'فعال' : 'غیرفعال'}</span>
+								<span>آماده استفاده</span>
 							</div>
 							<div className="trader-journal-dashboard-plan-card__actions account-card__actions">
 								<button type="button" onClick={() => editAccount(account)}>ویرایش</button>
-								<button type="button" onClick={() => void toggleAccount(account)}>{account.enabled ? 'غیرفعال کن' : 'فعال کن'}</button>
 								<button type="button" className="mod-warning" onClick={() => void removeAccount(account)}>حذف</button>
 							</div>
 						</article>
@@ -163,7 +162,7 @@ function AccountManagerContent({ plugin, onChanged }: Props) {
 
 			<section className="trader-journal-review-form account-manager__section account-manager__editor">
 				<div className="trader-journal-dashboard__section-header account-manager__section-title">
-					<div><h3>{draft.id ? 'ویرایش حساب' : 'ساخت حساب جدید'}</h3><p>نوع حساب تعیین می‌کند قوانین توقف روزانه روی آن اعمال شود یا نه.</p></div>
+					<div><h3>{draft.id ? 'ویرایش حساب' : 'ساخت حساب جدید'}</h3><p>نوع حساب تعیین می‌کند قوانین توقف روزانه روی آن اعمال شود یا نه. بعد از ذخیره، حساب فوراً قابل انتخاب است.</p></div>
 				</div>
 				<div className="trader-journal-form__grid account-manager__form-grid">
 					<label className="trader-journal-field"><span>نام حساب</span><input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="مثلاً Demo 100K" /></label>
@@ -196,7 +195,7 @@ function AccountManagerContent({ plugin, onChanged }: Props) {
 					<PolicyInput label="تقسیم سود هفته قبل" value={policy.weeklyProfitDivisor} onChange={(v) => setPolicyNumber('weeklyProfitDivisor', v)} />
 				</div>
 				<div className="trader-journal-plan-linked-trades account-manager__policy-explain">
-					فرمول فعلی: معامله ۱ و ۲ = پایه روز؛ معامله ۳ = سود خالص دو معامله اول ÷ ۴؛ معامله ۴ = ۰٫۱۵٪. هر روز سود مثبت روزهای قبل همان هفته ÷ ۴ به پایه اضافه می‌شود و در شروع هفته جدید سود مثبت هفته قبل ÷ ۱۶ به پایه هفتگی افزوده می‌شود.
+					فرمول فعلی پروژه: معامله ۱ و ۲ = پایه روز؛ معامله ۳ = سود خالص دو معامله اول ÷ ۴؛ معامله ۴ = ۰٫۱۵٪. هر روز سود مثبت روزهای قبل همان هفته ÷ ۴ به پایه اضافه می‌شود و در شروع هفته جدید سود مثبت هفته قبل ÷ ۱۶ به پایه هفتگی افزوده می‌شود. این قواعد شخصی مدیریت سرمایه‌اند و جدا از Riskهای منبع Presentation نگه داشته می‌شوند.
 				</div>
 				<div className="trader-journal-dashboard-plan-card__actions account-manager__actions"><button type="button" className="mod-cta" onClick={() => void savePolicy()}>ذخیره قوانین</button></div>
 			</section>
