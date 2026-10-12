@@ -20,6 +20,7 @@ import { registerTradeDrilldownView } from './dashboard/drilldown/TradeDrilldown
 import { syncGraphTypeTags } from './graph/tagSync';
 import { ReferenceDataService } from './journal/ReferenceDataService';
 import { installTraderJournalScrollSafety } from './ui/scrollSafety';
+import { ensureAllKhanSetups } from './khan/setups';
 
 interface TraderJournalPluginData {
 	settings: TraderJournalSettings;
@@ -62,6 +63,9 @@ export default class TraderJournalPlugin extends Plugin {
 		this.app.workspace.onLayoutReady(() => registerAutoStatsRebuild(this));
 		this.app.workspace.onLayoutReady(() => {
 			void syncGraphTypeTags(this);
+			void ensureAllKhanSetups(this).catch((error: unknown) => {
+				console.error('Trader Journal failed to seed the six Khan source setups', error);
+			});
 		});
 		registerTradeBlockProcessor(this);
 		registerPlanBlockProcessor(this);
@@ -132,13 +136,8 @@ function isPluginData(value: unknown): value is Partial<TraderJournalPluginData>
 }
 
 function normalizeEconomicCalendarCache(value: unknown): EconomicCalendarCache | null {
-	if (!isRecord(value) || typeof value.weekKey !== 'string' || typeof value.fetchedAt !== 'string') {
-		return null;
-	}
-	if (!Array.isArray(value.events)) {
-		return null;
-	}
-
+	if (!isRecord(value) || typeof value.weekKey !== 'string' || typeof value.fetchedAt !== 'string') return null;
+	if (!Array.isArray(value.events)) return null;
 	return value as unknown as EconomicCalendarCache;
 }
 
