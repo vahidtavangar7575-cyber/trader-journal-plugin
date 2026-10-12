@@ -19,3 +19,4 @@ import './riskPolicy.test';
 import './settings.test';
 import './positionSizing.test';
 import './accountSelection.test';
+import './persianReport.test';
