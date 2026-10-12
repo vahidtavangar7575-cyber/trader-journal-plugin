@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TradePlanOption } from '../src/plans/types';
 import type { Translator } from '../src/i18n';
+import { createTradeJournalCoreState } from '../src/trades/journalCore';
 import {
 	calculateLiveRr,
 	calculateTargetPriceForRr,
@@ -26,12 +27,7 @@ void test('round-trips stored trade tags through the modal input', () => {
 });
 
 void test('accepts a plan only for its symbol and active date range', () => {
-	const plan = createPlanOption({
-		symbol: 'NQ',
-		startDate: '2026-08-10',
-		endDate: '2026-08-20',
-	});
-
+	const plan = createPlanOption({ symbol: 'NQ', startDate: '2026-08-10', endDate: '2026-08-20' });
 	assert.equal(isTradePlanOptionCompatible(plan, 'nq', '2026-08-10'), true);
 	assert.equal(isTradePlanOptionCompatible(plan, 'NQ', '2026-08-20'), true);
 	assert.equal(isTradePlanOptionCompatible(plan, 'ES', '2026-08-15'), false);
@@ -42,54 +38,32 @@ void test('accepts a plan only for its symbol and active date range', () => {
 
 void test('keeps an open-ended plan active after its start date', () => {
 	const plan = createPlanOption({ endDate: null });
-
 	assert.equal(isTradePlanOptionCompatible(plan, 'NQ', '2026-08-15'), true);
 	assert.equal(isTradePlanOptionCompatible(plan, 'NQ', '2026-08-09'), false);
 });
 
 void test('accepts live prices with precision greater than two decimal places', () => {
-	const form = createLiveForm({
-		entryPrice: '1.08425',
-		stopLoss: '1.08415',
-		takeProfit: '1.08445',
-	});
-
+	const form = createLiveForm({ entryPrice: '1.08425', stopLoss: '1.08415', takeProfit: '1.08445' });
 	assert.equal(validateTradeForm(form, 'live', translateKey, []), null);
 	assert.equal(calculateLiveRr('long', form.entryPrice, form.stopLoss, form.takeProfit), 2);
 });
 
 void test('allows a Khan-style backtest execution ticket to stay open until the replay reaches SL or TP', () => {
-	const form = createLiveForm({
-		closedAt: '',
-		exitPrice: '',
-		rr: '',
-	});
-
+	const form = createLiveForm({ closedAt: '', exitPrice: '', rr: '' });
 	assert.equal(isExecutionFormClosing(form), false);
 	assert.equal(validateTradeForm(form, 'backtest', translateKey, [], true), null);
 });
 
 void test('treats a selected result as closing intent even before close time is filled', () => {
-	const form = createLiveForm({
-		closedAt: '',
-		exitPrice: '102',
-	});
-
+	const form = createLiveForm({ closedAt: '', exitPrice: '102' });
 	assert.equal(isExecutionFormClosing(form), true);
 	assert.equal(validateTradeForm(form, 'backtest', translateKey, [], true), 'برای ثبت نتیجه، زمان بسته‌شدن معامله را وارد کن.');
 });
 
 void test('requires an exit price only when an execution-style backtest is being closed', () => {
-	const form = createLiveForm({
-		closedAt: '2026-08-20T10:30',
-		exitPrice: '',
-	});
-
+	const form = createLiveForm({ closedAt: '2026-08-20T10:30', exitPrice: '' });
 	assert.equal(validateTradeForm(form, 'backtest', translateKey, [], true), 'error.exitPriceNumber');
-	assert.equal(
-		validateTradeForm({ ...form, exitPrice: '102' }, 'backtest', translateKey, [], true),
-		null,
-	);
+	assert.equal(validateTradeForm({ ...form, exitPrice: '102' }, 'backtest', translateKey, [], true), null);
 });
 
 void test('maps SL to minus one R and supports trailed wins above two R', () => {
@@ -101,10 +75,7 @@ void test('maps SL to minus one R and supports trailed wins above two R', () => 
 void test('keeps legacy backtests strict about RR and closed time', () => {
 	const form = createLiveForm({ rr: '', closedAt: '' });
 	assert.equal(validateTradeForm(form, 'backtest', translateKey, [], false), 'error.rrNumber');
-	assert.equal(
-		validateTradeForm({ ...form, rr: '2' }, 'backtest', translateKey, [], false),
-		'error.openedClosedRequired',
-	);
+	assert.equal(validateTradeForm({ ...form, rr: '2' }, 'backtest', translateKey, [], false), 'error.openedClosedRequired');
 });
 
 void test('calculates configurable target price from entry and stop', () => {
@@ -116,14 +87,8 @@ void test('calculates configurable target price from entry and stop', () => {
 void test('rejects unavailable, cross-symbol, and out-of-range plans', () => {
 	const form = createLiveForm({ planId: 'plan-1' });
 	assert.equal(validateTradeForm(form, 'live', translateKey, []), 'error.planUnavailable');
-	assert.equal(
-		validateTradeForm(form, 'live', translateKey, [createPlanOption({ symbol: 'ES' })]),
-		'error.planSymbolMismatch',
-	);
-	assert.equal(
-		validateTradeForm(form, 'live', translateKey, [createPlanOption({ endDate: '2026-08-19' })]),
-		'error.planDateMismatch',
-	);
+	assert.equal(validateTradeForm(form, 'live', translateKey, [createPlanOption({ symbol: 'ES' })]), 'error.planSymbolMismatch');
+	assert.equal(validateTradeForm(form, 'live', translateKey, [createPlanOption({ endDate: '2026-08-19' })]), 'error.planDateMismatch');
 });
 
 function createPlanOption(overrides: Partial<TradePlanOption> = {}): TradePlanOption {
@@ -165,6 +130,7 @@ function createLiveForm(overrides: Partial<TradeFormState> = {}): TradeFormState
 		marketArrivalContext: '',
 		preTradeEmotion: 'neutral',
 		urgeToChase: '',
+		journal: createTradeJournalCoreState(undefined),
 		images: [],
 		notes: '',
 		openedAt: '2026-08-20T09:30',

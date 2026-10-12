@@ -5,6 +5,7 @@ import { getTranslator } from '../../../i18n';
 import type { TradePlanOption } from '../../../plans/types';
 import { normalizeSymbol } from '../../../settings';
 import { stringifyValue } from '../../../trades/format';
+import { buildTradeJournalDetails } from '../../../trades/journalCore';
 import { attachPersianTradeReport } from '../../../trades/persianReport';
 import { previewAccountLedger } from '../../../accounts/ledger';
 import type { RiskPolicyEvaluation } from '../../../risk/policy';
@@ -17,12 +18,7 @@ import {
 } from '../../../trades/storage';
 import type { TradeEntry, TradeJournalType, TradeResult } from '../../../trades/types';
 import { buildTradeReview } from '../../TradeReviewFields';
-import {
-	getCurrentLocalIsoString,
-	getDateTimeDatePart,
-	getTodayDateInput,
-	toLocalIsoString,
-} from '../dateTime';
+import { getCurrentLocalIsoString, getDateTimeDatePart, getTodayDateInput, toLocalIsoString } from '../dateTime';
 import { createTradeImage } from '../images';
 import { calculateRiskAmount, parseTradeTags, validateTradeForm } from '../form';
 import type { TradeFormState } from '../form';
@@ -138,8 +134,13 @@ export function useTradeSave({
 		const trade = attachPersianTradeReport(attachRiskPolicyMetadata(ledger.trade, riskEvaluation, ruleWarnings));
 
 		const persistLedger = async () => {
-			plugin.settings.accounts = ledger.accounts;
-			if (form.accountId) plugin.settings.lastSelectedAccountId = form.accountId;
+			plugin.settings.accounts = ledger.accounts.map((account) => ({ ...account, enabled: true }));
+			if (form.accountId) {
+				plugin.settings.lastSelectedAccountId = form.accountId;
+				const account = plugin.settings.accounts.find((item) => item.id === form.accountId);
+				if (account?.type === 'backtest') plugin.settings.lastBacktestAccountId = form.accountId;
+				else if (account) plugin.settings.lastTradingAccountId = form.accountId;
+			}
 			await plugin.saveSettings();
 		};
 
@@ -176,9 +177,7 @@ export function useTradeSave({
 			}
 
 			new Notice(tr(isEditing ? 'notice.updatedTrade' : 'notice.savedTrade', { path: file.path }));
-			if (ruleWarnings.length > 0) {
-				new Notice(`معامله ذخیره شد، اما ${ruleWarnings.length} تخطی از قواعد مدیریت سرمایه نیز ثبت شد.`);
-			}
+			if (ruleWarnings.length > 0) new Notice(`معامله ذخیره شد، اما ${ruleWarnings.length} تخطی از قواعد مدیریت سرمایه نیز ثبت شد.`);
 			if (isMounted()) closeModal();
 		} catch (saveError) {
 			await failAttachmentCommit();
@@ -212,10 +211,9 @@ interface CreateTradeEntryArgs {
 function createTradeEntry(args: CreateTradeEntryArgs): TradeEntry {
 	const { form } = args;
 	const pendingImage = createTradeImage(args.imageInput);
-	const images = pendingImage && !form.images.some((image) => image.value === pendingImage.value)
-		? [...form.images, pendingImage]
-		: form.images;
+	const images = pendingImage && !form.images.some((image) => image.value === pendingImage.value) ? [...form.images, pendingImage] : form.images;
 	const computedRiskAmount = calculateRiskAmount(form.accountEquity, form.riskPct);
+	const journalDetails = buildTradeJournalDetails(form.journal);
 	const trade: TradeEntry = {
 		schemaVersion: 1,
 		id: args.tradeId,
@@ -240,6 +238,7 @@ function createTradeEntry(args: CreateTradeEntryArgs): TradeEntry {
 		...(form.marketArrivalContext ? { market_arrival_context: form.marketArrivalContext } : {}),
 		pre_trade_emotion: form.preTradeEmotion,
 		...(form.urgeToChase.trim() ? { urge_to_chase: Number(form.urgeToChase) } : {}),
+		...(journalDetails ? { journal_details: journalDetails } : {}),
 	};
 	copyKhanTradeMetadata(args.initialTrade, trade);
 	if (args.isLiveJournal && form.planId) trade.plan_id = form.planId;
@@ -268,11 +267,7 @@ function createTradeEntry(args: CreateTradeEntryArgs): TradeEntry {
 	return trade;
 }
 
-function attachRiskPolicyMetadata(
-	trade: TradeEntry,
-	evaluation: RiskPolicyEvaluation | null,
-	warnings: string[],
-): TradeEntry {
+function attachRiskPolicyMetadata(trade: TradeEntry, evaluation: RiskPolicyEvaluation | null, warnings: string[]): TradeEntry {
 	if (!evaluation) return trade;
 	return {
 		...trade,

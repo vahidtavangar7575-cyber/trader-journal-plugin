@@ -29,7 +29,12 @@ export interface TraderJournalSettings {
 	economicCalendarCountries: string[];
 	economicCalendarImpacts: EconomicImpact[];
 	accounts: TradingAccount[];
+	/** Legacy fallback kept for backward compatibility. */
 	lastSelectedAccountId: string;
+	/** Persistent default used only for backtest tickets. */
+	lastBacktestAccountId: string;
+	/** Persistent default used for demo/prop/competition/live tickets. */
+	lastTradingAccountId: string;
 	lastCommitmentDate: string;
 	riskPolicy: RiskPolicySettings;
 }
@@ -52,16 +57,22 @@ export const DEFAULT_SETTINGS: TraderJournalSettings = {
 	economicCalendarImpacts: ['High', 'Medium'],
 	accounts: [],
 	lastSelectedAccountId: '',
+	lastBacktestAccountId: '',
+	lastTradingAccountId: '',
 	lastCommitmentDate: '',
 	riskPolicy: { ...DEFAULT_RISK_POLICY },
 };
 
 export function normalizeSettings(settings: Partial<TraderJournalSettings> | null | undefined): TraderJournalSettings {
 	const accounts = normalizeAccounts(settings?.accounts);
-	const lastSelectedAccountId = typeof settings?.lastSelectedAccountId === 'string' &&
-		accounts.some((account) => account.id === settings.lastSelectedAccountId)
-		? settings.lastSelectedAccountId
-		: '';
+	const existing = (id: unknown) => typeof id === 'string' && accounts.some((account) => account.id === id) ? id : '';
+	const legacyId = existing(settings?.lastSelectedAccountId);
+	const lastBacktestAccountId = existing(settings?.lastBacktestAccountId) ||
+		(accounts.find((account) => account.id === legacyId && account.type === 'backtest')?.id ?? '');
+	const lastTradingAccountId = existing(settings?.lastTradingAccountId) ||
+		(accounts.find((account) => account.id === legacyId && account.type !== 'backtest')?.id ?? '');
+	const lastSelectedAccountId = legacyId || lastBacktestAccountId || lastTradingAccountId;
+
 	return {
 		journalFolder: settings?.journalFolder?.trim() || DEFAULT_SETTINGS.journalFolder,
 		liveJournalFolder: settings?.liveJournalFolder?.trim() || DEFAULT_SETTINGS.liveJournalFolder,
@@ -76,14 +87,12 @@ export function normalizeSettings(settings: Partial<TraderJournalSettings> | nul
 		economicCalendarEnabled: settings?.economicCalendarEnabled === true,
 		economicCalendarShowAll: settings?.economicCalendarShowAll === true,
 		economicCalendarTimeZone: normalizeTimeZone(settings?.economicCalendarTimeZone),
-		economicCalendarCountries: normalizeStringList(
-			settings?.economicCalendarCountries,
-			DEFAULT_SETTINGS.economicCalendarCountries,
-			normalizeCountry,
-		),
+		economicCalendarCountries: normalizeStringList(settings?.economicCalendarCountries, DEFAULT_SETTINGS.economicCalendarCountries, normalizeCountry),
 		economicCalendarImpacts: normalizeEconomicImpacts(settings?.economicCalendarImpacts),
 		accounts,
 		lastSelectedAccountId,
+		lastBacktestAccountId,
+		lastTradingAccountId,
 		lastCommitmentDate: normalizeDateKey(settings?.lastCommitmentDate),
 		riskPolicy: normalizeRiskPolicy(settings?.riskPolicy),
 	};
@@ -110,10 +119,7 @@ function normalizeLanguage(value: unknown): TraderJournalLanguage {
 }
 
 function normalizeTimeZone(value: unknown): string {
-	if (typeof value !== 'string' || !value.trim()) {
-		return DEFAULT_ECONOMIC_CALENDAR_TIME_ZONE;
-	}
-
+	if (typeof value !== 'string' || !value.trim()) return DEFAULT_ECONOMIC_CALENDAR_TIME_ZONE;
 	const timeZone = value.trim();
 	try {
 		new Intl.DateTimeFormat('en', { timeZone }).format();
@@ -124,28 +130,22 @@ function normalizeTimeZone(value: unknown): string {
 }
 
 function normalizeEconomicImpacts(value: unknown): EconomicImpact[] {
-	if (!Array.isArray(value)) {
-		return [...DEFAULT_SETTINGS.economicCalendarImpacts];
-	}
-
+	if (!Array.isArray(value)) return [...DEFAULT_SETTINGS.economicCalendarImpacts];
 	const impacts = ECONOMIC_IMPACTS.filter((impact) => value.includes(impact));
 	return impacts.length ? impacts : [...DEFAULT_SETTINGS.economicCalendarImpacts];
 }
 
-function normalizeStringList(
-	values: unknown,
-	fallback: string[],
-	normalize: (value: string) => string,
-): string[] {
+function normalizeStringList(values: unknown, fallback: string[], normalize: (value: string) => string): string[] {
 	const sourceValues = Array.isArray(values) && values.length ? values : fallback;
-	const normalizedValues = sourceValues
-		.map((value) => (typeof value === 'string' ? normalize(value) : ''))
-		.filter(Boolean);
-
+	const normalizedValues = sourceValues.map((value) => typeof value === 'string' ? normalize(value) : '').filter(Boolean);
 	const uniqueValues = [...new Set(normalizedValues)];
 	return uniqueValues.length ? uniqueValues : [...new Set(fallback.map((value) => normalize(value)).filter(Boolean))];
 }
 
+/**
+ * v1.13 removes the confusing activation state. All persisted accounts are
+ * selectable. `enabled` remains true only to keep old JSON/schema consumers safe.
+ */
 function normalizeAccounts(value: unknown): TradingAccount[] {
 	if (!Array.isArray(value)) return [];
 	const ids = new Set<string>();
@@ -167,7 +167,7 @@ function normalizeAccounts(value: unknown): TradingAccount[] {
 			currency: stringField(item.currency).toUpperCase() || 'USD',
 			initialBalance,
 			currentBalance: currentBalance !== null && currentBalance >= 0 ? currentBalance : initialBalance,
-			enabled: item.enabled !== false,
+			enabled: true,
 			createdAt: validIso(item.createdAt) ?? new Date().toISOString(),
 			updatedAt: validIso(item.updatedAt) ?? new Date().toISOString(),
 		});
@@ -176,9 +176,7 @@ function normalizeAccounts(value: unknown): TradingAccount[] {
 }
 
 function normalizeAccountType(value: unknown): TradingAccountType {
-	return value === 'backtest' || value === 'demo' || value === 'prop' || value === 'competition' || value === 'live'
-		? value
-		: 'demo';
+	return value === 'backtest' || value === 'demo' || value === 'prop' || value === 'competition' || value === 'live' ? value : 'demo';
 }
 
 function normalizeDateKey(value: unknown): string {
