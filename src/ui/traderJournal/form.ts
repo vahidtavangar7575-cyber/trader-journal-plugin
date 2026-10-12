@@ -220,12 +220,12 @@ function resolveInitialAccountId(plugin: TraderJournalPlugin, initialTrade: Trad
 	const historicalId = stringifyValue(initialTrade?.account_id);
 	if (historicalId && plugin.settings.accounts.some((account) => account.id === historicalId)) return historicalId;
 	const compatible = (id: string) => {
-		const account = plugin.settings.accounts.find((item) => item.id === id && item.enabled);
+		const account = plugin.settings.accounts.find((item) => item.id === id);
 		if (!account) return false;
 		return journalType === 'backtest' ? account.type === 'backtest' : account.type !== 'backtest';
 	};
 	if (compatible(plugin.settings.lastSelectedAccountId)) return plugin.settings.lastSelectedAccountId;
-	return plugin.settings.accounts.find((account) => account.enabled && (journalType === 'backtest' ? account.type === 'backtest' : account.type !== 'backtest'))?.id ?? '';
+	return plugin.settings.accounts.find((account) => journalType === 'backtest' ? account.type === 'backtest' : account.type !== 'backtest')?.id ?? '';
 }
 
 function normalizePositionUnit(value: unknown): TradePositionUnit {
