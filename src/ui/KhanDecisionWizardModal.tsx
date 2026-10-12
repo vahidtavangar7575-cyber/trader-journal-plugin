@@ -36,6 +36,7 @@ interface KhanWizardContentProps {
 }
 
 type WizardScreen = 'commitment' | 'home' | 'setups' | 'flow';
+const SCROLL_SAFE_COCKPIT_CLASS = 'trader-journal-form__body khan-cockpit';
 
 function localDateKey(date = new Date()): string {
 	const year = date.getFullYear();
@@ -145,7 +146,7 @@ function KhanWizardContent({ plugin, closeModal }: KhanWizardContentProps) {
 
 	if (screen === 'commitment') {
 		return (
-			<div className="khan-cockpit" dir="rtl">
+			<div className={SCROLL_SAFE_COCKPIT_CLASS} dir="rtl">
 				<header className="khan-hero">
 					<div className="khan-kicker">آیین شروع جلسه · فقط یک‌بار در هر روز</div>
 					<h2>قبل از نمودار، کیفیت تصمیم را انتخاب کن</h2>
@@ -190,7 +191,7 @@ function KhanWizardContent({ plugin, closeModal }: KhanWizardContentProps) {
 
 	if (screen === 'home') {
 		return (
-			<div className="khan-cockpit" dir="rtl">
+			<div className={SCROLL_SAFE_COCKPIT_CLASS} dir="rtl">
 				<header className="khan-hero khan-hero--compact">
 					<div className="khan-kicker">Trading Cockpit · تعهد امروز ثبت شده ✓</div>
 					<h2>مسیر خان را از خود Presentation اجرا کن</h2>
@@ -229,7 +230,7 @@ function KhanWizardContent({ plugin, closeModal }: KhanWizardContentProps) {
 
 	if (screen === 'setups') {
 		return (
-			<div className="khan-cockpit" dir="rtl">
+			<div className={SCROLL_SAFE_COCKPIT_CLASS} dir="rtl">
 				<header className="khan-hero khan-hero--compact">
 					<div className="khan-kicker">۶ ستاپ فایل Presentation</div>
 					<h2>ستاپ را برای مرور مستقیم انتخاب کن</h2>
@@ -251,7 +252,7 @@ function KhanWizardContent({ plugin, closeModal }: KhanWizardContentProps) {
 	}
 
 	return (
-		<div className="khan-cockpit" dir="rtl">
+		<div className={SCROLL_SAFE_COCKPIT_CLASS} dir="rtl">
 			<header className="khan-flow-header">
 				<div>
 					<div className="khan-kicker">مرحله {snapshot.pages.length} · صفحه منبع {node.page}</div>
