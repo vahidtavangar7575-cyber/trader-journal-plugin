@@ -1,5 +1,6 @@
 import { KHAN_RULES, KHAN_RULE_VERSION, KHAN_START_PAGE } from './rules';
 import type {
+	KhanDecisionAnswer,
 	KhanDecisionResult,
 	KhanDecisionSnapshot,
 	KhanQuestionNode,
@@ -61,7 +62,7 @@ export function answerKhanDecision(
 
 	return {
 		page: answer.nextPage,
-		setup: answer.setSetup ?? snapshot.setup,
+		setup: resolveSetupIdentity(snapshot, node, answer),
 		decisions: [
 			...snapshot.decisions,
 			{ page: node.page, answerId: answer.id, answerLabel: answer.label },
@@ -72,6 +73,23 @@ export function answerKhanDecision(
 			{ page: snapshot.page, setup: snapshot.setup, decisionCount: snapshot.decisions.length },
 		],
 	};
+}
+
+function resolveSetupIdentity(
+	snapshot: KhanDecisionSnapshot,
+	node: KhanQuestionNode,
+	answer: KhanDecisionAnswer,
+): KhanSetupId | null {
+	// Presentation page 37 has a source hyperlink into page 53, which is also
+	// used by Setup 6. That is a shared execution branch, not evidence that a
+	// trader who entered through Setup 4 should have the recorded setup silently
+	// renamed to Setup 6. Preserve the origin label while following the exact
+	// page link. Explicit source hand-offs such as page 52 -> Setup 1 remain
+	// handled by instruction.setSetup below.
+	if (node.page === 37 && snapshot.setup === 'setup-4' && answer.nextPage === 53) {
+		return snapshot.setup;
+	}
+	return answer.setSetup ?? snapshot.setup;
 }
 
 export function continueKhanDecision(snapshot: KhanDecisionSnapshot): KhanDecisionSnapshot {
