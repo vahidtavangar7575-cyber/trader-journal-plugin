@@ -1,9 +1,9 @@
 {
 	"id": "trader-journal",
 	"name": "Trader Journal",
-	"version": "1.13.0",
+	"version": "1.14.0",
 	"minAppVersion": "1.6.6",
-	"description": "Persian/RTL Khan trading cockpit centered on the 58-page Presentation, with simplified saved accounts, Persian trade reports, risk engine, automatic position sizing, screenshots, dashboard and review.",
+	"description": "Persian/RTL Khan trading cockpit with all 6 Presentation setups, direct screenshot upload, broker-aware position sizing, Persian reports, risk engine, dashboard and review.",
 	"author": "LamPhucHai",
 	"authorUrl": "https://github.com/hailp-vn38",
 	"isDesktopOnly": false
