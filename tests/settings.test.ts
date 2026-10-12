@@ -11,3 +11,15 @@ void test('drops malformed persisted commitment dates', () => {
 	assert.equal(normalizeSettings({ lastCommitmentDate: '10/10/2026' }).lastCommitmentDate, '');
 	assert.equal(normalizeSettings({ lastCommitmentDate: 'today' }).lastCommitmentDate, '');
 });
+
+void test('keeps only positive broker contract-size overrides', () => {
+	const settings = normalizeSettings({
+		instrumentContractOverrides: {
+			XAUUSD: 100,
+			GER40: 1,
+			BROKEN: -2,
+			ZERO: 0,
+		},
+	});
+	assert.deepEqual(settings.instrumentContractOverrides, { XAUUSD: 100, GER40: 1 });
+});
