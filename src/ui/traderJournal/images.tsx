@@ -73,9 +73,14 @@ function getAttachmentFolder(plugin: TraderJournalPlugin, journalType: TradeJour
 	).replace(/\/$/, '');
 	const now = new Date();
 	const symbolPart = sanitizePathPart(normalizeSymbol(symbol) || 'UNSPECIFIED');
-	const year = String(now.getFullYear());
-	const month = padDatePart(now.getMonth() + 1);
-	const day = padDatePart(now.getDate());
+	const localDateParts = new Intl.DateTimeFormat('en-US', {
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+	}).formatToParts(now);
+	const year = localDateParts.find((part) => part.type === 'year')?.value ?? String(now.getFullYear());
+	const month = localDateParts.find((part) => part.type === 'month')?.value ?? '01';
+	const day = localDateParts.find((part) => part.type === 'day')?.value ?? padDatePart(now.getDate());
 	return normalizePath(`${journalFolder}/_attachments/${symbolPart}/${year}/${month}/${day}`);
 }
 
