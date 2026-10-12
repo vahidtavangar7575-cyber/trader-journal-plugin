@@ -38,13 +38,7 @@ export interface TraderJournalFormProps {
 	closeModal: () => void;
 }
 
-export function TraderJournalForm({
-	plugin,
-	journalType,
-	initialTrade,
-	targetFilePath,
-	closeModal,
-}: TraderJournalFormProps) {
+export function TraderJournalForm({ plugin, journalType, initialTrade, targetFilePath, closeModal }: TraderJournalFormProps) {
 	const [form, setForm] = useState<TradeFormState>(() => createInitialTradeForm(plugin, initialTrade, journalType));
 	const [error, setError] = useState('');
 	const [journalRevision, setJournalRevision] = useState(0);
@@ -134,9 +128,7 @@ export function TraderJournalForm({
 	);
 	const executionResult = executionRr === null ? null : getTradeResultFromRr(executionRr);
 	const actualRiskPct = numericValue(form.riskPct);
-	const ruleWarnings = riskEvaluation
-		? buildRiskRuleWarnings(riskEvaluation, actualRiskPct, plannedRr)
-		: [];
+	const ruleWarnings = riskEvaluation ? buildRiskRuleWarnings(riskEvaluation, actualRiskPct, plannedRr) : [];
 	const tr = getTranslator(plugin.settings.language);
 	const { isSaving, saveTrade } = useTradeSave({
 		beginAttachmentCommit: beginCommit,
@@ -332,6 +324,7 @@ export function TraderJournalForm({
 				onSetupChange={updateSetup} onTagsChange={(tags) => updateField('tags', tags)} />
 
 			<TradeRiskPsychologyFields
+				plugin={plugin}
 				form={form}
 				accountLinked={Boolean(selectedAccount)}
 				accountCurrency={selectedAccount?.currency ?? 'USD'}

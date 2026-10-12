@@ -20,12 +20,16 @@ export interface InstrumentProfile {
 	unitLabel: 'pip' | 'point' | 'tick' | 'dollar';
 	brokerSpecific: boolean;
 	noteFa: string;
+	officialReferenceFa: string;
+	officialSourceFa: string;
 }
 
 /**
- * Reference CFD/spot-style profiles used by the position-size engine.
- * Contract specifications for CFDs can differ by broker. The calculator
- * therefore exposes the contract size and requires the user to verify it.
+ * The values used for sizing below are practical spot/CFD defaults, because the
+ * journal is primarily used with retail/prop accounts where symbols such as
+ * XAUUSD, US30 and NAS100 are broker-defined CFDs. Exchange futures references
+ * are kept next to each profile for verification and education, but are NOT
+ * silently substituted for a broker contract specification.
  */
 export const INSTRUMENT_PROFILES: InstrumentProfile[] = [
 	{
@@ -40,7 +44,9 @@ export const INSTRUMENT_PROFILES: InstrumentProfile[] = [
 		maxVolume: 100,
 		unitLabel: 'pip',
 		brokerSpecific: false,
-		noteFa: '۱ لات استاندارد = ۱۰۰٬۰۰۰ یورو؛ هر pip برابر 0.0001 است.',
+		noteFa: 'پروفایل اجرایی Spot/CFD: ۱ لات استاندارد = ۱۰۰٬۰۰۰ یورو و ۱ pip = 0.0001.',
+		officialReferenceFa: 'مرجع بورس آتی CME برای Euro FX (6E): هر قرارداد = ۱۲۵٬۰۰۰ یورو و Tick پایه 0.00005 = 6.25 USD. این عدد با «لات استاندارد Spot/CFD» یکی نیست.',
+		officialSourceFa: 'CME Euro FX — بازبینی مرجع 2026-10',
 	},
 	{
 		id: 'XAUUSD',
@@ -54,7 +60,9 @@ export const INSTRUMENT_PROFILES: InstrumentProfile[] = [
 		maxVolume: 100,
 		unitLabel: 'tick',
 		brokerSpecific: true,
-		noteFa: 'پروفایل مرجع: ۱ لات = ۱۰۰ اونس؛ حرکت 0.01 دلار = 1 دلار در هر لات.',
+		noteFa: 'پروفایل اجرایی رایج CFD: ۱ لات = ۱۰۰ اونس؛ حرکت 0.01 دلار = 1 دلار در هر لات. اگر بروکر تو متفاوت است، Override را ذخیره کن.',
+		officialReferenceFa: 'COMEX Gold Futures (GC): هر قرارداد = ۱۰۰ اونس تروا. E-mini Gold = ۵۰ اونس و Micro Gold (MGC) = ۱۰ اونس. در GC هر حرکت 0.10 دلار روی هر اونس = 10 USD برای یک قرارداد.',
+		officialSourceFa: 'CME/COMEX Gold — بازبینی مرجع 2026-10',
 	},
 	{
 		id: 'US30',
@@ -68,7 +76,9 @@ export const INSTRUMENT_PROFILES: InstrumentProfile[] = [
 		maxVolume: 100,
 		unitLabel: 'point',
 		brokerSpecific: true,
-		noteFa: 'پروفایل مرجع CFD: هر ۱ پوینت = ۱ دلار برای ۱ لات. مشخصات بروکر را یک‌بار کنترل کن.',
+		noteFa: 'پروفایل اجرایی مرجع CFD: هر ۱ پوینت = ۱ دلار برای ۱ لات. این مقدار در CFDها بروکر-محور است.',
+		officialReferenceFa: 'CME/CBOT E-mini Dow (YM): ضریب 5 USD به‌ازای هر پوینت شاخص. Micro E-mini Dow (MYM): ضریب 0.50 USD به‌ازای هر پوینت.',
+		officialSourceFa: 'CME/CBOT Dow futures — بازبینی مرجع 2026-10',
 	},
 	{
 		id: 'DAX40',
@@ -82,7 +92,9 @@ export const INSTRUMENT_PROFILES: InstrumentProfile[] = [
 		maxVolume: 100,
 		unitLabel: 'point',
 		brokerSpecific: true,
-		noteFa: 'پروفایل مرجع CFD: هر ۱ پوینت = ۱ یورو برای ۱ لات. برای حساب USD نرخ EUR→USD آنلاین تبدیل می‌شود.',
+		noteFa: 'پروفایل اجرایی مرجع CFD: هر ۱ پوینت = ۱ یورو برای ۱ لات. برای حساب USD، EUR→USD تبدیل می‌شود.',
+		officialReferenceFa: 'Eurex: DAX Futures (FDAX) = 25 EUR/point، Mini-DAX (FDXM) = 5 EUR/point، Micro-DAX (FDXS) = 1 EUR/point.',
+		officialSourceFa: 'Eurex DAX futures — بازبینی مرجع 2026-10',
 	},
 	{
 		id: 'NAS100',
@@ -96,7 +108,9 @@ export const INSTRUMENT_PROFILES: InstrumentProfile[] = [
 		maxVolume: 100,
 		unitLabel: 'point',
 		brokerSpecific: true,
-		noteFa: 'پروفایل مرجع CFD: هر ۱ پوینت = ۱ دلار برای ۱ لات. مشخصات بروکر را یک‌بار کنترل کن.',
+		noteFa: 'پروفایل اجرایی مرجع CFD: هر ۱ پوینت = ۱ دلار برای ۱ لات. مشخصات Contract Size بروکر را ذخیره کن.',
+		officialReferenceFa: 'CME: E-mini Nasdaq-100 (NQ) = 20 USD/point با Tick 0.25؛ Micro E-mini Nasdaq-100 (MNQ) = 2 USD/point با Tick 0.25.',
+		officialSourceFa: 'CME Nasdaq futures — بازبینی مرجع 2026-10',
 	},
 	{
 		id: 'USOIL',
@@ -110,7 +124,9 @@ export const INSTRUMENT_PROFILES: InstrumentProfile[] = [
 		maxVolume: 100,
 		unitLabel: 'tick',
 		brokerSpecific: true,
-		noteFa: 'پروفایل مرجع: ۱ لات = ۱۰۰۰ بشکه؛ حرکت 0.01 دلار = 10 دلار در هر لات.',
+		noteFa: 'پروفایل اجرایی رایج CFD: ۱ لات = ۱۰۰۰ بشکه؛ حرکت 0.01 دلار = 10 دلار در هر لات. بروکر را یک‌بار تطبیق بده.',
+		officialReferenceFa: 'NYMEX WTI Crude Oil (CL): هر قرارداد استاندارد = ۱۰۰۰ بشکه و Tick 0.01 USD/barrel = 10 USD. Micro WTI برابر ۱۰۰ بشکه است.',
+		officialSourceFa: 'CME/NYMEX WTI — بازبینی مرجع 2026-10',
 	},
 	{
 		id: 'BTCUSD',
@@ -124,7 +140,9 @@ export const INSTRUMENT_PROFILES: InstrumentProfile[] = [
 		maxVolume: 100,
 		unitLabel: 'dollar',
 		brokerSpecific: true,
-		noteFa: 'پروفایل مرجع CFD: ۱ لات = ۱ BTC؛ هر ۱ دلار حرکت = ۱ دلار در هر لات.',
+		noteFa: 'پروفایل اجرایی مرجع CFD: ۱ لات = ۱ BTC؛ هر ۱ دلار حرکت = ۱ دلار در هر لات. قرارداد بروکر/صرافی می‌تواند متفاوت باشد.',
+		officialReferenceFa: 'CME Bitcoin Futures (BTC): هر قرارداد = ۵ BTC. Micro Bitcoin Futures (MBT): هر قرارداد = ۰.۱ BTC.',
+		officialSourceFa: 'CME Bitcoin futures — بازبینی مرجع 2026-10',
 	},
 ];
 
@@ -135,9 +153,7 @@ export function normalizeInstrumentSymbol(value: string): string {
 export function findInstrumentProfile(symbol: string): InstrumentProfile | null {
 	const normalized = normalizeInstrumentSymbol(symbol);
 	if (!normalized) return null;
-	return INSTRUMENT_PROFILES.find((profile) =>
-		profile.aliases.some((alias) => normalizeInstrumentSymbol(alias) === normalized),
-	) ?? null;
+	return INSTRUMENT_PROFILES.find((profile) => profile.aliases.some((alias) => normalizeInstrumentSymbol(alias) === normalized)) ?? null;
 }
 
 export function formatDistanceUnit(profile: InstrumentProfile): string {

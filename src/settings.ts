@@ -32,6 +32,7 @@ export interface TraderJournalSettings {
 	lastSelectedAccountId: string;
 	lastCommitmentDate: string;
 	riskPolicy: RiskPolicySettings;
+	instrumentContractOverrides: Record<string, number>;
 }
 
 export const DEFAULT_SETTINGS: TraderJournalSettings = {
@@ -54,12 +55,12 @@ export const DEFAULT_SETTINGS: TraderJournalSettings = {
 	lastSelectedAccountId: '',
 	lastCommitmentDate: '',
 	riskPolicy: { ...DEFAULT_RISK_POLICY },
+	instrumentContractOverrides: {},
 };
 
 export function normalizeSettings(settings: Partial<TraderJournalSettings> | null | undefined): TraderJournalSettings {
 	const accounts = normalizeAccounts(settings?.accounts);
-	const lastSelectedAccountId = typeof settings?.lastSelectedAccountId === 'string' &&
-		accounts.some((account) => account.id === settings.lastSelectedAccountId)
+	const lastSelectedAccountId = typeof settings?.lastSelectedAccountId === 'string' && accounts.some((account) => account.id === settings.lastSelectedAccountId)
 		? settings.lastSelectedAccountId
 		: '';
 	return {
@@ -76,16 +77,13 @@ export function normalizeSettings(settings: Partial<TraderJournalSettings> | nul
 		economicCalendarEnabled: settings?.economicCalendarEnabled === true,
 		economicCalendarShowAll: settings?.economicCalendarShowAll === true,
 		economicCalendarTimeZone: normalizeTimeZone(settings?.economicCalendarTimeZone),
-		economicCalendarCountries: normalizeStringList(
-			settings?.economicCalendarCountries,
-			DEFAULT_SETTINGS.economicCalendarCountries,
-			normalizeCountry,
-		),
+		economicCalendarCountries: normalizeStringList(settings?.economicCalendarCountries, DEFAULT_SETTINGS.economicCalendarCountries, normalizeCountry),
 		economicCalendarImpacts: normalizeEconomicImpacts(settings?.economicCalendarImpacts),
 		accounts,
 		lastSelectedAccountId,
 		lastCommitmentDate: normalizeDateKey(settings?.lastCommitmentDate),
 		riskPolicy: normalizeRiskPolicy(settings?.riskPolicy),
+		instrumentContractOverrides: normalizeInstrumentContractOverrides(settings?.instrumentContractOverrides),
 	};
 }
 
@@ -110,10 +108,7 @@ function normalizeLanguage(value: unknown): TraderJournalLanguage {
 }
 
 function normalizeTimeZone(value: unknown): string {
-	if (typeof value !== 'string' || !value.trim()) {
-		return DEFAULT_ECONOMIC_CALENDAR_TIME_ZONE;
-	}
-
+	if (typeof value !== 'string' || !value.trim()) return DEFAULT_ECONOMIC_CALENDAR_TIME_ZONE;
 	const timeZone = value.trim();
 	try {
 		new Intl.DateTimeFormat('en', { timeZone }).format();
@@ -124,26 +119,28 @@ function normalizeTimeZone(value: unknown): string {
 }
 
 function normalizeEconomicImpacts(value: unknown): EconomicImpact[] {
-	if (!Array.isArray(value)) {
-		return [...DEFAULT_SETTINGS.economicCalendarImpacts];
-	}
-
+	if (!Array.isArray(value)) return [...DEFAULT_SETTINGS.economicCalendarImpacts];
 	const impacts = ECONOMIC_IMPACTS.filter((impact) => value.includes(impact));
 	return impacts.length ? impacts : [...DEFAULT_SETTINGS.economicCalendarImpacts];
 }
 
-function normalizeStringList(
-	values: unknown,
-	fallback: string[],
-	normalize: (value: string) => string,
-): string[] {
+function normalizeStringList(values: unknown, fallback: string[], normalize: (value: string) => string): string[] {
 	const sourceValues = Array.isArray(values) && values.length ? values : fallback;
-	const normalizedValues = sourceValues
-		.map((value) => (typeof value === 'string' ? normalize(value) : ''))
-		.filter(Boolean);
-
+	const normalizedValues = sourceValues.map((value) => (typeof value === 'string' ? normalize(value) : '')).filter(Boolean);
 	const uniqueValues = [...new Set(normalizedValues)];
 	return uniqueValues.length ? uniqueValues : [...new Set(fallback.map((value) => normalize(value)).filter(Boolean))];
+}
+
+function normalizeInstrumentContractOverrides(value: unknown): Record<string, number> {
+	if (!isRecord(value)) return {};
+	const normalized: Record<string, number> = {};
+	for (const [key, raw] of Object.entries(value)) {
+		const symbol = normalizeSymbol(key);
+		const contractSize = numberField(raw);
+		if (!symbol || contractSize === null || contractSize <= 0) continue;
+		normalized[symbol] = contractSize;
+	}
+	return normalized;
 }
 
 function normalizeAccounts(value: unknown): TradingAccount[] {
@@ -176,9 +173,7 @@ function normalizeAccounts(value: unknown): TradingAccount[] {
 }
 
 function normalizeAccountType(value: unknown): TradingAccountType {
-	return value === 'backtest' || value === 'demo' || value === 'prop' || value === 'competition' || value === 'live'
-		? value
-		: 'demo';
+	return value === 'backtest' || value === 'demo' || value === 'prop' || value === 'competition' || value === 'live' ? value : 'demo';
 }
 
 function normalizeDateKey(value: unknown): string {
