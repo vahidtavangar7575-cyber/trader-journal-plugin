@@ -3,7 +3,7 @@
 	"name": "Trader Journal",
 	"version": "2.0.0",
 	"minAppVersion": "1.6.6",
-	"description": "Persian/RTL journal-first trading workspace with daily commitment, multi-account tracking, structured screenshots, psychology reviews, analytics charts, and weekly/monthly reports. Strategy decisions stay outside Obsidian.",
+	"description": "Persian/RTL journal-first trading workspace with daily commitment, multi-account tracking, structured screenshots, psychology reviews, analytics charts, and weekly/monthly reports.",
 	"author": "LamPhucHai",
 	"authorUrl": "https://github.com/hailp-vn38",
 	"isDesktopOnly": false
