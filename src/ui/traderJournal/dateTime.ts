@@ -55,7 +55,7 @@ export function normalizeDateInput(value: string): string {
 	const raw = toEnglishDigits(value).trim().replace(/\s+/g, '');
 	if (!raw) return '';
 
-	const isoMatch = /^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/.exec(raw);
+	const isoMatch = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(raw);
 	if (isoMatch) {
 		const year = Number(isoMatch[1] ?? '');
 		const month = Number(isoMatch[2] ?? '');
@@ -63,7 +63,7 @@ export function normalizeDateInput(value: string): string {
 		return formatValidatedDate(year, month, day);
 	}
 
-	const usMatch = /^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/.exec(raw);
+	const usMatch = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/.exec(raw);
 	if (!usMatch) return '';
 	const month = Number(usMatch[1] ?? '');
 	const day = Number(usMatch[2] ?? '');
