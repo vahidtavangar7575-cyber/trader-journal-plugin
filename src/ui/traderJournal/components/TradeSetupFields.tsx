@@ -32,19 +32,20 @@ export function TradeSetupFields({
 	return (
 		<>
 			<label className="trader-journal-field">
-				<span>{tr('detail.setup')}</span>
-				<select value={form.setupId}
+				<span>ستاپ معامله</span>
+				<select
+					value={form.setupId}
 					onChange={(event: ChangeEvent<HTMLSelectElement>) => onSetupChange(event.target.value)}
-					disabled={isLoadingSetups || (isLiveJournal && Boolean(form.planId))} required>
-					<option value="">
-						{isLoadingSetups ? tr('placeholder.loadingSetups') : tr('placeholder.selectSetup')}
-					</option>
+					disabled={isLoadingSetups || (isLiveJournal && Boolean(form.planId))}
+				>
+					<option value="">{isLoadingSetups ? 'در حال بارگذاری ستاپ‌ها…' : 'نامشخص / بعداً تکمیل می‌کنم'}</option>
 					{availableSetups.map((setup) => (
 						<option value={setup.id} key={setup.id}>
 							{setup.name}{setup.status === 'archived' ? ` (${tr('option.archived')})` : ''}
 						</option>
 					))}
 				</select>
+				<small style={{ color: 'var(--text-muted)', lineHeight: 1.5 }}>ستاپ را از روی PDF انتخاب کن. اگر هنوز مطمئن نیستی، معامله را ثبت کن و بعداً ستاپ را تکمیل کن؛ ثبت سریع مهم‌تر از حدس‌زدن است.</small>
 			</label>
 			{isLiveJournal ? null : (
 				<label className="trader-journal-field">
