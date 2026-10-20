@@ -2,9 +2,10 @@ import { useState } from 'react';
 import type { ChangeEvent } from 'react';
 import type { Translator } from '../../../i18n';
 import { formatDuration } from '../../../trades/format';
-import { getCurrentLocalIsoString, toDateTimeLocalInput } from '../dateTime';
+import { getCurrentDateTimeLocalInput } from '../dateTime';
 import { calculateLiveRr, calculateTargetPriceForRr, formatComputedRr } from '../form';
 import type { TradeFormState } from '../form';
+import { JournalDateTimeField } from './JournalDateTimeField';
 
 interface TradeExecutionFieldsProps {
 	form: TradeFormState;
@@ -57,9 +58,7 @@ export function TradeExecutionFields({
 
 	function markClosed(exitPrice: string) {
 		onExitPriceChange(exitPrice);
-		if (isLiveJournal) {
-			onClosedAtChange(toDateTimeLocalInput(getCurrentLocalIsoString()));
-		}
+		if (isLiveJournal) onClosedAtChange(getCurrentDateTimeLocalInput());
 	}
 
 	function markLoss() {
@@ -88,7 +87,7 @@ export function TradeExecutionFields({
 			<label className="trader-journal-field">
 				<span>{usesExecutionLifecycle ? tr('detail.entryPrice') : tr('detail.rr')}</span>
 				{usesExecutionLifecycle ? (
-					<input type="number" step="any" value={form.entryPrice} placeholder="100"
+					<input type="number" step="any" value={form.entryPrice} placeholder="مثلاً 1.09618"
 						onChange={(event: ChangeEvent<HTMLInputElement>) => onEntryPriceChange(event.target.value)} required />
 				) : (
 					<input type="number" step="0.01" value={form.rr} placeholder="2"
@@ -100,13 +99,13 @@ export function TradeExecutionFields({
 				<>
 					<label className="trader-journal-field">
 						<span>{tr('detail.stopLoss')}</span>
-						<input type="number" step="any" value={form.stopLoss} placeholder="99"
+						<input type="number" step="any" value={form.stopLoss} placeholder="حد ضرر واقعی"
 							onChange={(event: ChangeEvent<HTMLInputElement>) => onStopLossChange(event.target.value)} required />
 					</label>
 					<label className="trader-journal-field">
 						<span>{tr('detail.takeProfit')} · هدف فعلی {formatComputedRr(targetR)}R</span>
 						<div className="trader-journal-setup-select-row">
-							<input type="number" step="any" value={form.takeProfit} placeholder="104"
+							<input type="number" step="any" value={form.takeProfit} placeholder="هدف معامله"
 								onChange={(event: ChangeEvent<HTMLInputElement>) => onTakeProfitChange(event.target.value)} required />
 							<button type="button" onClick={onApplyTargetRr}>تنظیم {formatComputedRr(targetR)}R</button>
 						</div>
@@ -114,64 +113,73 @@ export function TradeExecutionFields({
 				</>
 			) : null}
 
-			<label className="trader-journal-field">
-				<span>{tr('detail.openedAt')}</span>
-				<input type="datetime-local" value={form.openedAt}
-					onChange={(event: ChangeEvent<HTMLInputElement>) => onOpenedAtChange(event.target.value)}
-					disabled={isEditing} required />
-			</label>
+			<JournalDateTimeField
+				label={tr('detail.openedAt')}
+				value={form.openedAt}
+				onChange={onOpenedAtChange}
+				disabled={isEditing}
+				required
+				allowEmpty={false}
+				hint="برای ثبت سریع «الان» را بزن. تاریخ‌های 2026-10-20 و 10/20/2026 هر دو پذیرفته می‌شوند."
+			/>
 
 			{usesExecutionLifecycle && !isEditing ? (
-				<div className="trader-journal-field trader-journal-field--readonly">
-					<span>وضعیت نتیجه</span>
-					<strong>معامله باز — الان فقط بلیت ورود ذخیره می‌شود</strong>
-					<small>قیمت خروج و زمان خروج در ثبت اولیه لازم نیستند؛ بعد از TP یا SL همین معامله را باز کن و نتیجه را با یک کلیک ثبت کن.</small>
+				<div className="trader-journal-field trader-journal-field--readonly journal-v3-open-state">
+					<span>وضعیت معامله</span>
+					<strong>● باز — فعلاً فقط اطلاعات ورود ذخیره می‌شود</strong>
+					<small>خروج و نتیجه اجباری نیستند. بعداً همین رکورد را باز کن و با یک کلیک SL، 2R یا R واقعی را ثبت کن.</small>
 				</div>
 			) : null}
 
 			{quickCloseAvailable ? (
-				<section className="trader-journal-field" style={{ gridColumn: '1 / -1', padding: '12px', border: '1px solid var(--background-modifier-border)', borderRadius: '10px' }}>
-					<strong style={{ fontSize: '16px' }}>نتیجه معامله را سریع ثبت کن</strong>
-					<small>اگر SL خورده «ضرر» را بزن. اگر سود شده، 2R انتخاب اول است؛ برای تریل یا خروج متفاوت R واقعی را در کادر وارد کن.</small>
-					<div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: '8px', marginTop: '10px' }}>
-						<button type="button" onClick={markLoss} disabled={!form.stopLoss.trim()}>ضرر / SL خورد</button>
-						<button type="button" className="mod-cta" onClick={markTwoRWin} disabled={twoRTarget === null}>سود · 2R</button>
-						<div style={{ display: 'flex', gap: '6px' }}>
+				<section className="trader-journal-review-form journal-v3-result-card" style={{ gridColumn: '1 / -1' }}>
+					<div className="trader-journal-review-form__header">
+						<h3>نتیجه را در چند ثانیه ثبت کن</h3>
+						<p>برای ضرر، SL را بزن. برای سود، 2R انتخاب سریع است؛ اگر تریل کرده‌ای R واقعی را وارد کن.</p>
+					</div>
+					<div className="journal-v3-result-actions">
+						<button type="button" className="journal-v3-loss-button" onClick={markLoss} disabled={!form.stopLoss.trim()}>ضرر · -1R / SL</button>
+						<button type="button" className="mod-cta" onClick={markTwoRWin} disabled={twoRTarget === null}>برد · +2R</button>
+						<div className="journal-v3-custom-r">
 							<input aria-label="R واقعی سود" type="number" min="0.01" step="0.1" value={winRText} onChange={(event) => setWinRText(event.target.value)} placeholder="مثلاً 3.4" />
 							<button type="button" onClick={markCustomWin} disabled={customWinTarget === null}>ثبت سود با این R</button>
 						</div>
 					</div>
-					{!isLiveJournal ? <small>در بک‌تست بعد از انتخاب نتیجه فقط زمان تاریخی خروج را هم ثبت کن؛ قیمت خروج از R انتخاب‌شده محاسبه می‌شود.</small> : null}
+					{!isLiveJournal ? <small>در بک‌تست بعد از انتخاب نتیجه، زمان تاریخی خروج را نیز پایین ثبت کن.</small> : null}
 				</section>
 			) : null}
 
 			{usesExecutionLifecycle && isExecutionTradeClosed ? (
 				<>
-					<div className="trader-journal-field trader-journal-field--readonly" style={{ border: '1px solid var(--interactive-accent)', borderRadius: '10px', padding: '10px' }}>
+					<div className="trader-journal-field trader-journal-field--readonly journal-v3-result-selected">
 						<span>نتیجه انتخاب‌شده</span>
-						<strong>{executionRr === null ? '-' : executionRr < 0 ? 'ضرر / SL' : `سود · ${formatComputedRr(executionRr)}R`}</strong>
-						<button type="button" onClick={reopenTrade}>لغو نتیجه و بازگرداندن معامله به حالت باز</button>
+						<strong>{executionRr === null ? '-' : executionRr < 0 ? 'ضرر · -1R' : `برد · +${formatComputedRr(executionRr)}R`}</strong>
+						<button type="button" onClick={reopenTrade}>بازگرداندن معامله به حالت باز</button>
 					</div>
-					<label className="trader-journal-field">
-						<span>{tr('detail.closedAt')} · زمان دقیق خروج</span>
-						<input type="datetime-local" value={form.closedAt}
-							onChange={(event: ChangeEvent<HTMLInputElement>) => onClosedAtChange(event.target.value)} />
-						{!form.closedAt ? <small>برای نهایی‌شدن نتیجه، زمان خروج را ثبت کن.</small> : null}
-					</label>
+					<JournalDateTimeField
+						label="زمان بسته شدن"
+						value={form.closedAt}
+						onChange={onClosedAtChange}
+						required
+						quickMode="closed"
+						hint={isLiveJournal ? 'در معامله زنده هنگام انتخاب نتیجه، زمان فعلی خودکار ثبت می‌شود.' : 'در بک‌تست زمان تاریخی خروج را ثبت کن.'}
+					/>
 					<label className="trader-journal-field">
 						<span>{tr('detail.exitPrice')} · از R انتخاب‌شده محاسبه شده و قابل اصلاح است</span>
-						<input type="number" step="any" value={form.exitPrice} placeholder="102"
+						<input type="number" step="any" value={form.exitPrice} placeholder="قیمت خروج"
 							onChange={(event: ChangeEvent<HTMLInputElement>) => onExitPriceChange(event.target.value)} />
 					</label>
 				</>
 			) : null}
 
 			{!usesExecutionLifecycle ? (
-				<label className="trader-journal-field">
-					<span>{tr('detail.closedAt')}</span>
-					<input type="datetime-local" value={form.closedAt}
-						onChange={(event: ChangeEvent<HTMLInputElement>) => onClosedAtChange(event.target.value)} required />
-				</label>
+				<JournalDateTimeField
+					label={tr('detail.closedAt')}
+					value={form.closedAt}
+					onChange={onClosedAtChange}
+					required
+					quickMode="closed"
+				/>
 			) : null}
 
 			<div className="trader-journal-field trader-journal-field--readonly">
