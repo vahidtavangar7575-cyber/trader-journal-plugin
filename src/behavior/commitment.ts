@@ -41,18 +41,20 @@ function levenshteinDistance(left: string, right: string): number {
 	if (!left.length) return right.length;
 	if (!right.length) return left.length;
 
-	let previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+	let previous: number[] = Array.from({ length: right.length + 1 }, (_, index) => index);
 	for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
-		const current = [leftIndex];
+		const current = new Array<number>(right.length + 1).fill(0);
+		current[0] = leftIndex;
 		for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
-			const cost = left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1;
-			current[rightIndex] = Math.min(
-				current[rightIndex - 1] + 1,
-				previous[rightIndex] + 1,
-				previous[rightIndex - 1] + cost,
-			);
+			const leftChar = left.charAt(leftIndex - 1);
+			const rightChar = right.charAt(rightIndex - 1);
+			const cost = leftChar === rightChar ? 0 : 1;
+			const insertion = (current[rightIndex - 1] ?? Number.MAX_SAFE_INTEGER) + 1;
+			const deletion = (previous[rightIndex] ?? Number.MAX_SAFE_INTEGER) + 1;
+			const substitution = (previous[rightIndex - 1] ?? Number.MAX_SAFE_INTEGER) + cost;
+			current[rightIndex] = Math.min(insertion, deletion, substitution);
 		}
 		previous = current;
 	}
-	return previous[right.length];
+	return previous[right.length] ?? Math.max(left.length, right.length);
 }
