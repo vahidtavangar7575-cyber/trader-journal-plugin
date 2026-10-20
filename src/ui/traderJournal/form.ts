@@ -58,8 +58,7 @@ export function createInitialTradeForm(
 ): TradeFormState {
 	const accountId = resolveInitialAccountId(plugin, initialTrade, journalType);
 	const account = plugin.settings.accounts.find((item) => item.id === accountId);
-	const usesExecutionLifecycle = journalType === 'live' || Boolean(initialTrade?.khan_setup);
-	const openedAt = stringifyValue(initialTrade?.opened_at) || (usesExecutionLifecycle ? getCurrentLocalIsoString() : '');
+	const openedAt = stringifyValue(initialTrade?.opened_at) || getCurrentLocalIsoString();
 	const closedAt = initialTrade?.status === 'open' ? '' : stringifyValue(initialTrade?.closed_at);
 	return {
 		symbol: stringifyValue(initialTrade?.symbol) || plugin.settings.symbols[0] || '',
@@ -125,11 +124,11 @@ export function validateTradeForm(
 	journalType: TradeJournalType,
 	tr: Translator,
 	planOptions: TradePlanOption[],
-	usesExecutionLifecycle = journalType === 'live',
+	usesExecutionLifecycle = true,
 ): string | null {
 	if (!normalizeSymbol(form.symbol)) return tr('error.symbolRequired');
 	if (!form.timeframe) return tr('error.timeframeRequired');
-	if (!form.setupId || !form.setup.trim()) return tr('error.setupRequired');
+	// Setup is intentionally optional in Journal First: save the trade now and complete it later from the PDF.
 
 	if (!usesExecutionLifecycle && journalType === 'backtest') {
 		const rr = form.rr.trim() ? Number(form.rr) : Number.NaN;

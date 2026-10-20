@@ -1,0 +1,65 @@
+name: Package Journal 3 Premium
+
+on:
+  push:
+    branches:
+      - feature/journal-3.0-premium
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate manifest
+        run: npm run validate
+
+      - name: Build plugin
+        run: npm run build
+
+      - name: Prepare installable plugin package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p package/trader-journal
+          cp main.js manifest.json styles.css package/trader-journal/
+          if [ -f docs/INSTALL-FA.md ]; then cp docs/INSTALL-FA.md package/trader-journal/INSTALL-FA.md; fi
+          cat > package/trader-journal/JOURNAL-3-README-FA.txt <<'EOF'
+          Journal 3 Premium - Obsidian Trader Journal
+
+          نصب:
+          1) پوشه trader-journal را داخل مسیر زیر کپی کنید:
+             <Vault>/.obsidian/plugins/
+          2) اگر قبلاً نسخه قدیمی نصب است، data.json را حذف یا جایگزین نکنید.
+          3) Obsidian را باز کنید و از Settings > Community plugins افزونه Trader Journal را فعال کنید.
+
+          فایل های لازم برای اجرا:
+          - main.js
+          - manifest.json
+          - styles.css
+
+          نکته: data.json عمداً داخل این بسته قرار نگرفته تا اطلاعات و تنظیمات قبلی شما پاک نشود.
+          EOF
+          ls -lah package/trader-journal
+
+      - name: Upload Journal 3 Premium artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Journal-3-Premium-Obsidian
+          path: package/trader-journal
+          if-no-files-found: error
+          retention-days: 30

@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
 	DAILY_TRADING_COMMITMENT,
 	canManuallyConfirmCommitment,
+	getCommitmentDifferenceCount,
 	getCommitmentMatchScore,
 	isCommitmentComplete,
 	normalizeCommitment,
@@ -11,21 +12,25 @@ import {
 void test('accepts the exact trading commitment', () => {
 	assert.equal(isCommitmentComplete(DAILY_TRADING_COMMITMENT), true);
 	assert.equal(getCommitmentMatchScore(DAILY_TRADING_COMMITMENT), 100);
+	assert.equal(getCommitmentDifferenceCount(DAILY_TRADING_COMMITMENT), 0);
 });
 
-void test('normalizes Persian and Arabic letter variants, spacing, and punctuation', () => {
-	const variant = DAILY_TRADING_COMMITMENT
-		.replace(/ی/g, 'ي')
-		.replace(/ک/g, 'ك')
-		.replace(/؛/g, ';')
-		.replace(/،/g, ',')
-		.replace(/ /g, '\u200c');
-
-	assert.equal(normalizeCommitment(variant), normalizeCommitment(DAILY_TRADING_COMMITMENT));
-	assert.equal(isCommitmentComplete(variant), true);
+void test('treats Persian half-space exactly like a normal space', () => {
+	assert.equal(normalizeCommitment('می\u200Cشوم'), normalizeCommitment('می شوم'));
+	assert.equal(normalizeCommitment('تعیین\u200Cشده'), 'تعیین شده');
 });
 
-void test('offers a conscious manual continuation after substantial typing', () => {
-	const substantialTyping = DAILY_TRADING_COMMITMENT.slice(0, Math.ceil(DAILY_TRADING_COMMITMENT.length * 0.7));
-	assert.equal(canManuallyConfirmCommitment(substantialTyping), true);
+void test('does not silently normalize letters or punctuation', () => {
+	const changedLetter = DAILY_TRADING_COMMITMENT.replace('کیفیت', 'كيفيت');
+	const changedPunctuation = DAILY_TRADING_COMMITMENT.replace('؛', ';');
+	assert.equal(isCommitmentComplete(changedLetter), false);
+	assert.equal(isCommitmentComplete(changedPunctuation), false);
+	assert.ok(getCommitmentMatchScore(changedLetter) < 100);
+	assert.ok(getCommitmentMatchScore(changedPunctuation) < 100);
+});
+
+void test('manual bypass stays disabled until the text is fully complete', () => {
+	const substantialTyping = DAILY_TRADING_COMMITMENT.slice(0, Math.ceil(DAILY_TRADING_COMMITMENT.length * 0.95));
+	assert.equal(canManuallyConfirmCommitment(substantialTyping), false);
+	assert.equal(canManuallyConfirmCommitment(DAILY_TRADING_COMMITMENT), true);
 });

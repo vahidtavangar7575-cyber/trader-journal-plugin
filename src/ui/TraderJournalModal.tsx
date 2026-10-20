@@ -30,7 +30,7 @@ export class TraderJournalModal extends Modal {
 
 	onOpen() {
 		this.titleEl.empty();
-		this.modalEl.addClass('trader-journal-modal-shell');
+		this.modalEl.addClass('trader-journal-modal-shell', 'journal-v3-modal-shell');
 		this.contentEl.addClass('trader-journal-modal-content');
 		this.contentEl.empty();
 		this.root = createRoot(this.contentEl);
@@ -50,7 +50,7 @@ export class TraderJournalModal extends Modal {
 	onClose() {
 		this.root?.unmount();
 		this.root = null;
-		this.modalEl.removeClass('trader-journal-modal-shell');
+		this.modalEl.removeClass('trader-journal-modal-shell', 'journal-v3-modal-shell');
 		this.contentEl.removeClass('trader-journal-modal-content');
 		this.contentEl.empty();
 	}
