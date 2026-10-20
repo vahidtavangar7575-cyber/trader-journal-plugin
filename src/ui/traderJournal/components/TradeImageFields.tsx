@@ -19,10 +19,17 @@ interface TradeImageFieldsProps {
 	onSelectImageFiles: (files: File[], label?: string) => void;
 }
 
+const PRIMARY_LABELS = new Set([
+	'journal-m15-context',
+	'journal-m1-entry',
+	'journal-exit',
+	'khan-m15-entry',
+	'khan-m1-entry',
+]);
+
 export function TradeImageFields({
 	images,
 	imageInput,
-	isKhanTrade = false,
 	isPastingImage,
 	plugin,
 	tr,
@@ -34,46 +41,65 @@ export function TradeImageFields({
 }: TradeImageFieldsProps) {
 	const supplementalImages = images
 		.map((image, index) => ({ image, index }))
-		.filter(({ image }) => image.label !== 'khan-m15-entry' && image.label !== 'khan-m1-entry');
+		.filter(({ image }) => !image.label || !PRIMARY_LABELS.has(image.label));
 
 	return (
 		<div className="trader-journal-field trader-journal-field--images">
-			<span>{tr('detail.images')}</span>
+			<section className="trader-journal-review-form" style={{ marginTop: 0 }}>
+				<div className="trader-journal-review-form__header">
+					<h3>تصاویر اصلی ژورنال</h3>
+					<p>سه تصویر اصلی باعث می‌شوند چند هفته بعد بتوانی تصمیم را دقیق بازسازی کنی؛ نتیجه به‌تنهایی کافی نیست.</p>
+				</div>
+				<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 10 }}>
+					<JournalImageSlot
+						title="۱) تصویر 15 دقیقه / Context"
+						description="ساختار، POI، نقدینگی هدف، PDH/PDL و فضای سشن"
+						label="journal-m15-context"
+						legacyLabels={['khan-m15-entry']}
+						images={images}
+						isBusy={isPastingImage}
+						plugin={plugin}
+						onRemoveImage={onRemoveImage}
+						onSelectImageFiles={onSelectImageFiles}
+					/>
+					<JournalImageSlot
+						title="۲) تصویر 1 دقیقه / Entry"
+						description="IDM / CHOCH / Flip / OF / SCOB، محل Entry، SL و Target"
+						label="journal-m1-entry"
+						legacyLabels={['khan-m1-entry']}
+						images={images}
+						isBusy={isPastingImage}
+						plugin={plugin}
+						onRemoveImage={onRemoveImage}
+						onSelectImageFiles={onSelectImageFiles}
+					/>
+					<JournalImageSlot
+						title="۳) تصویر خروج / After"
+						description="محل خروج واقعی، مسیر قیمت بعد از ورود و دلیل بسته‌شدن معامله"
+						label="journal-exit"
+						legacyLabels={[]}
+						images={images}
+						isBusy={isPastingImage}
+						plugin={plugin}
+						onRemoveImage={onRemoveImage}
+						onSelectImageFiles={onSelectImageFiles}
+					/>
+				</div>
+			</section>
 
-			{isKhanTrade ? (
-				<section style={{ display: 'grid', gap: '10px', marginBottom: '12px' }}>
-					<div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-						دو تصویر اصلی تصمیم را مستقیم از حافظه کامپیوتر انتخاب کن. هر کادر فقط برای تایم‌فریم خودش است.
-					</div>
-					<div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '10px' }}>
-						<KhanImageSlot
-							title="تصویر 15 دقیقه / HTF"
-							description="ساختار، POI، نقدینگی هدف، PDH/PDL و Session context"
-							label="khan-m15-entry"
-							images={images}
-							isBusy={isPastingImage}
-							plugin={plugin}
-							onRemoveImage={onRemoveImage}
-							onSelectImageFiles={onSelectImageFiles}
-						/>
-						<KhanImageSlot
-							title="تصویر 1 دقیقه / LTF"
-							description="IDM/CHOCH/Flip/OF/SCOB همراه Entry، SL و Target"
-							label="khan-m1-entry"
-							images={images}
-							isBusy={isPastingImage}
-							plugin={plugin}
-							onRemoveImage={onRemoveImage}
-							onSelectImageFiles={onSelectImageFiles}
-						/>
-					</div>
-				</section>
-			) : null}
+			<label className="trader-journal-field">
+				<span>تصاویر تکمیلی</span>
+				<input
+					type="text"
+					value={imageInput}
+					placeholder={isPastingImage ? tr('placeholder.savingImage') : 'لینک، مسیر فایل داخل Vault یا Paste تصویر تکمیلی'}
+					onChange={(event: ChangeEvent<HTMLInputElement>) => onImageInputChange(event.target.value)}
+					onKeyDown={onImageInputKeyDown}
+					onPaste={onImagePaste}
+					disabled={isPastingImage}
+				/>
+			</label>
 
-			<input type="text" value={imageInput}
-				placeholder={isPastingImage ? tr('placeholder.savingImage') : isKhanTrade ? 'تصویر تکمیلی: لینک، مسیر فایل داخل Vault یا Paste' : tr('placeholder.image')}
-				onChange={(event: ChangeEvent<HTMLInputElement>) => onImageInputChange(event.target.value)}
-				onKeyDown={onImageInputKeyDown} onPaste={onImagePaste} disabled={isPastingImage} />
 			{supplementalImages.length > 0 ? (
 				<div className="trader-journal-image-preview-row">
 					{supplementalImages.map(({ image, index }) => (
@@ -90,10 +116,11 @@ export function TradeImageFields({
 	);
 }
 
-interface KhanImageSlotProps {
+interface JournalImageSlotProps {
 	title: string;
 	description: string;
 	label: string;
+	legacyLabels: string[];
 	images: TradeImage[];
 	isBusy: boolean;
 	plugin: TraderJournalPlugin;
@@ -101,24 +128,26 @@ interface KhanImageSlotProps {
 	onSelectImageFiles: (files: File[], label?: string) => void;
 }
 
-function KhanImageSlot({
+function JournalImageSlot({
 	title,
 	description,
 	label,
+	legacyLabels,
 	images,
 	isBusy,
 	plugin,
 	onRemoveImage,
 	onSelectImageFiles,
-}: KhanImageSlotProps) {
+}: JournalImageSlotProps) {
 	const inputRef = useRef<HTMLInputElement | null>(null);
-	const imageIndex = images.findIndex((image) => image.label === label);
+	const acceptedLabels = new Set([label, ...legacyLabels]);
+	const imageIndex = images.findIndex((image) => image.label && acceptedLabels.has(image.label));
 	const image = imageIndex >= 0 ? images[imageIndex] : null;
 
 	return (
-		<div style={{ border: '1px solid var(--background-modifier-border)', borderRadius: '10px', padding: '10px', minWidth: 0 }}>
-			<strong style={{ display: 'block', marginBottom: '4px' }}>{title}</strong>
-			<small style={{ display: 'block', minHeight: '34px', color: 'var(--text-muted)' }}>{description}</small>
+		<div style={{ border: '1px solid var(--background-modifier-border)', borderRadius: 12, padding: 12, minWidth: 0, background: 'var(--background-primary)' }}>
+			<strong style={{ display: 'block', marginBottom: 5 }}>{title}</strong>
+			<small style={{ display: 'block', minHeight: 38, color: 'var(--text-muted)', lineHeight: 1.6 }}>{description}</small>
 			<input
 				ref={inputRef}
 				type="file"
@@ -131,12 +160,15 @@ function KhanImageSlot({
 				}}
 			/>
 			{image ? (
-				<div className="trader-journal-image-preview" style={{ marginTop: '8px' }}>
-					<button type="button" className="trader-journal-image-preview__remove" aria-label={`حذف ${title}`} onClick={() => onRemoveImage(imageIndex)}>X</button>
-					<ImagePreview plugin={plugin} image={image} />
-				</div>
+				<>
+					<div className="trader-journal-image-preview" style={{ marginTop: 8, width: '100%' }}>
+						<button type="button" className="trader-journal-image-preview__remove" aria-label={`حذف ${title}`} onClick={() => onRemoveImage(imageIndex)}>X</button>
+						<ImagePreview plugin={plugin} image={image} />
+					</div>
+					<button type="button" style={{ width: '100%', marginTop: 8 }} disabled={isBusy} onClick={() => inputRef.current?.click()}>تعویض تصویر</button>
+				</>
 			) : (
-				<button type="button" className="mod-cta" style={{ width: '100%', marginTop: '8px' }} disabled={isBusy} onClick={() => inputRef.current?.click()}>
+				<button type="button" className="mod-cta" style={{ width: '100%', marginTop: 8 }} disabled={isBusy} onClick={() => inputRef.current?.click()}>
 					{isBusy ? 'در حال ذخیره تصویر…' : 'انتخاب تصویر از کامپیوتر'}
 				</button>
 			)}
