@@ -156,18 +156,6 @@ export class DailyCommitmentModal extends Modal {
 	onOpen(): void {
 		this.modalEl.addClass('trader-journal-modal-shell', 'khan-wizard-modal', 'journal-v3-modal-shell');
 		this.contentEl.addClass('trader-journal-modal-content');
-		this.modalEl.setCssProps({
-			width: 'min(1080px, calc(100vw - 32px))',
-			'max-width': 'calc(100vw - 32px)',
-			height: 'min(900px, calc(100dvh - 40px))',
-			'max-height': 'calc(100dvh - 40px)',
-			overflow: 'hidden',
-		});
-		this.contentEl.setCssProps({
-			height: '100%',
-			'min-height': '0',
-			overflow: 'hidden',
-		});
 		this.contentEl.empty();
 		this.root = createRoot(this.contentEl);
 		this.root.render(
@@ -180,8 +168,8 @@ export class DailyCommitmentModal extends Modal {
 	onClose(): void {
 		this.root?.unmount();
 		this.root = null;
-		this.modalEl.removeAttribute('style');
-		this.contentEl.removeAttribute('style');
+		this.modalEl.removeClass('trader-journal-modal-shell', 'khan-wizard-modal', 'journal-v3-modal-shell');
+		this.contentEl.removeClass('trader-journal-modal-content');
 		this.contentEl.empty();
 	}
 }
