@@ -7,7 +7,6 @@ import {
 	registerTraderJournalCalendarView,
 	TRADER_JOURNAL_CALENDAR_ICON,
 } from './ui/TradeCalendarView';
-import { KhanDecisionWizardModal } from './ui/KhanDecisionWizardModal';
 import { registerAutoStatsRebuild } from './trades/autoRebuild';
 import { registerTradeBlockProcessor } from './trades/tradeBlockProcessor';
 import { registerPlanBlockProcessor } from './plans/planBlockProcessor';
@@ -15,11 +14,16 @@ import { getTranslator } from './i18n';
 import { EconomicCalendarService } from './economicCalendar/api';
 import type { EconomicCalendarCache } from './economicCalendar/types';
 import { JournalDataService } from './journal/JournalDataService';
-import { registerTraderJournalDashboardView } from './dashboard/DashboardView';
+import {
+	openTraderJournalDashboard,
+	registerTraderJournalDashboardView,
+	TRADER_JOURNAL_DASHBOARD_ICON,
+} from './dashboard/DashboardView';
 import { registerTradeDrilldownView } from './dashboard/drilldown/TradeDrilldownView';
 import { syncGraphTypeTags } from './graph/tagSync';
 import { ReferenceDataService } from './journal/ReferenceDataService';
 import { installTraderJournalScrollSafety } from './ui/scrollSafety';
+import { ensureAllKhanSetups } from './khan/seedAll';
 
 interface TraderJournalPluginData {
 	settings: TraderJournalSettings;
@@ -48,11 +52,11 @@ export default class TraderJournalPlugin extends Plugin {
 		this.referenceDataService = new ReferenceDataService(this);
 		const tr = getTranslator(this.settings.language);
 
+		this.addRibbonIcon(TRADER_JOURNAL_DASHBOARD_ICON, 'ژورنال معاملات', () => {
+			openTraderJournalDashboard(this);
+		});
 		this.addRibbonIcon(TRADER_JOURNAL_CALENDAR_ICON, tr('command.openTradeCalendar'), () => {
 			void openTraderJournalCalendar(this);
-		});
-		this.addRibbonIcon('list-checks', 'راهنمای تصمیم ستاپ‌های خان', () => {
-			new KhanDecisionWizardModal(this.app, this).open();
 		});
 
 		registerTraderJournalCalendarView(this);
@@ -62,6 +66,7 @@ export default class TraderJournalPlugin extends Plugin {
 		this.app.workspace.onLayoutReady(() => registerAutoStatsRebuild(this));
 		this.app.workspace.onLayoutReady(() => {
 			void syncGraphTypeTags(this);
+			void ensureAllKhanSetups(this);
 		});
 		registerTradeBlockProcessor(this);
 		registerPlanBlockProcessor(this);
@@ -138,7 +143,6 @@ function normalizeEconomicCalendarCache(value: unknown): EconomicCalendarCache |
 	if (!Array.isArray(value.events)) {
 		return null;
 	}
-
 	return value as unknown as EconomicCalendarCache;
 }
 

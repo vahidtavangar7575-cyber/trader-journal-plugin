@@ -46,6 +46,7 @@ export function TradeIdentityFields({
 	onTimeframeChange,
 }: TradeIdentityFieldsProps) {
 	const symbolOptions = [...new Set([...FOCUSED_SYMBOLS, ...symbols, form.symbol].filter(Boolean))];
+	const linkedPlan = form.planId ? planOptions.find((plan) => plan.id === form.planId) : null;
 	return (
 		<>
 			<label className="trader-journal-field">
@@ -56,11 +57,11 @@ export function TradeIdentityFields({
 				</select>
 			</label>
 
-			{isLiveJournal ? (
+			{isLiveJournal && linkedPlan ? (
 				<label className="trader-journal-field">
-					<span>{tr('detail.plan')}</span>
+					<span>پلن تاریخی متصل</span>
 					<select value={form.planId} onChange={(event: ChangeEvent<HTMLSelectElement>) => onPlanChange(event.target.value)} disabled={isLoadingPlans}>
-						<option value="">{tr('placeholder.noPlan')}</option>
+						<option value="">بدون پلن</option>
 						{planOptions.map((plan) => <option value={plan.id} key={plan.id}>{formatPlanOptionLabel(plan)}</option>)}
 					</select>
 				</label>

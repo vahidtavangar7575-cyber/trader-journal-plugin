@@ -4,10 +4,11 @@ import { StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type TraderJournalPlugin from '../main';
 import { getTranslator } from '../i18n';
-import { Dashboard } from './Dashboard';
+import { JournalDashboardV2 } from './JournalDashboardV2';
+import { runAfterDailyCommitment } from '../ui/DailyCommitmentModal';
 
 export const TRADER_JOURNAL_DASHBOARD_VIEW_TYPE = 'trader-journal-dashboard';
-export const TRADER_JOURNAL_DASHBOARD_ICON = 'chart-no-axes-combined';
+export const TRADER_JOURNAL_DASHBOARD_ICON = 'notebook-tabs';
 
 export function registerTraderJournalDashboardView(plugin: TraderJournalPlugin): void {
 	plugin.registerView(
@@ -16,18 +17,19 @@ export function registerTraderJournalDashboardView(plugin: TraderJournalPlugin):
 	);
 }
 
-export async function openTraderJournalDashboard(plugin: TraderJournalPlugin): Promise<void> {
+export function openTraderJournalDashboard(plugin: TraderJournalPlugin): void {
+	runAfterDailyCommitment(plugin, () => {
+		void openTraderJournalDashboardNow(plugin);
+	});
+}
+
+export async function openTraderJournalDashboardNow(plugin: TraderJournalPlugin): Promise<void> {
 	try {
 		let leaf = plugin.app.workspace.getLeavesOfType(TRADER_JOURNAL_DASHBOARD_VIEW_TYPE)[0];
-
 		if (!leaf) {
 			leaf = plugin.app.workspace.getLeaf('tab');
-			await leaf.setViewState({
-				type: TRADER_JOURNAL_DASHBOARD_VIEW_TYPE,
-				active: true,
-			});
+			await leaf.setViewState({ type: TRADER_JOURNAL_DASHBOARD_VIEW_TYPE, active: true });
 		}
-
 		plugin.app.workspace.setActiveLeaf(leaf, { focus: true });
 	} catch (error) {
 		console.error('Trader Journal failed to open dashboard', error);
@@ -44,27 +46,15 @@ class TraderJournalDashboardView extends ItemView {
 		this.icon = TRADER_JOURNAL_DASHBOARD_ICON;
 	}
 
-	getViewType(): string {
-		return TRADER_JOURNAL_DASHBOARD_VIEW_TYPE;
-	}
-
-	getDisplayText(): string {
-		return getTranslator(this.plugin.settings.language)('dashboard.title');
-	}
-
-	getIcon(): string {
-		return TRADER_JOURNAL_DASHBOARD_ICON;
-	}
+	getViewType(): string { return TRADER_JOURNAL_DASHBOARD_VIEW_TYPE; }
+	getDisplayText(): string { return 'ژورنال معاملات'; }
+	getIcon(): string { return TRADER_JOURNAL_DASHBOARD_ICON; }
 
 	async onOpen(): Promise<void> {
 		this.contentEl.empty();
 		this.contentEl.addClass('trader-journal-dashboard-view');
 		this.root = createRoot(this.contentEl);
-		this.root.render(
-			<StrictMode>
-				<Dashboard plugin={this.plugin} />
-			</StrictMode>,
-		);
+		this.root.render(<StrictMode><JournalDashboardV2 plugin={this.plugin} /></StrictMode>);
 	}
 
 	async onClose(): Promise<void> {
