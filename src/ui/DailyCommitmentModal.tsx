@@ -61,76 +61,82 @@ function DailyCommitmentContent({ plugin, onConfirmed, closeModal }: DailyCommit
 	};
 
 	return (
-		<div className="trader-journal-form__body khan-cockpit journal-v3-commitment" dir="rtl">
-			<header className="khan-hero journal-v3-commitment__hero">
+		<div className="trader-journal-form__body khan-cockpit" dir="rtl" style={{ gap: 16, padding: '4px 10px 20px' }}>
+			<header className="khan-hero" style={{ borderRadius: 18, padding: '22px 24px' }}>
 				<div className="khan-kicker">آیین شروع جلسه · فقط یک‌بار در هر روز</div>
-				<h2>امروز کیفیت تصمیم را انتخاب کن</h2>
-				<p>قبل از اولین معامله، این متن را با دست تایپ کن. بعد از ثبت موفق، تا فردا دوباره از تو خواسته نمی‌شود.</p>
-				<div className="journal-v3-commitment__badges" aria-label="قوانین تعهد">
-					<span>Paste غیرفعال</span>
-					<span>فقط نیم‌فاصله نادیده گرفته می‌شود</span>
-					<span>حروف و علائم باید مطابق متن باشند</span>
+				<h2 style={{ marginTop: 8, marginBottom: 8 }}>امروز کیفیت تصمیم را انتخاب کن</h2>
+				<p>قبل از اولین معامله، این متن را با دست تایپ کن. پس از ثبت موفق، تا فردا دوباره از تو خواسته نمی‌شود.</p>
+				<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }} aria-label="قوانین تعهد">
+					<span className="trader-journal-plan-badge">Paste غیرفعال</span>
+					<span className="trader-journal-plan-badge">فقط نیم‌فاصله نادیده گرفته می‌شود</span>
+					<span className="trader-journal-plan-badge">حروف و علائم باید مطابق متن باشند</span>
 				</div>
 			</header>
 
 			{error ? <div className="trader-journal-form__error">{error}</div> : null}
 
-			<section className="journal-v3-commitment__source-card">
-				<div className="journal-v3-section-heading">
+			<section className="trader-journal-review-form" style={{ borderRadius: 16, padding: 18 }}>
+				<div className="trader-journal-review-form__header" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
 					<div>
-						<small>متن مرجع امروز</small>
-						<h3>تعهد معامله‌گر حرفه‌ای</h3>
+						<p>متن مرجع امروز</p>
+						<h3 style={{ marginTop: 4 }}>تعهد معامله‌گر حرفه‌ای</h3>
 					</div>
-					<span className="journal-v3-status-pill">{getLocalDateKey()}</span>
+					<span className="trader-journal-plan-badge">{getLocalDateKey()}</span>
 				</div>
-				<div className="journal-v3-commitment__source">{DAILY_TRADING_COMMITMENT}</div>
+				<div className="khan-commitment-source" style={{ fontSize: 15, lineHeight: 2, textAlign: 'justify', borderRadius: 12, padding: 18 }}>
+					{DAILY_TRADING_COMMITMENT}
+				</div>
 			</section>
 
-			<section className="journal-v3-commitment__typing-card">
-				<div className="journal-v3-section-heading">
+			<section className="khan-commitment-card trader-journal-review-form" style={{ borderRadius: 16, padding: 18 }}>
+				<div className="trader-journal-review-form__header" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
 					<div>
-						<small>فضای تایپ</small>
-						<h3>تعهدت را اینجا بنویس</h3>
+						<p>فضای تایپ</p>
+						<h3 style={{ marginTop: 4 }}>تعهدت را اینجا بنویس</h3>
 					</div>
-					<strong className={complete ? 'journal-v3-match journal-v3-match--complete' : 'journal-v3-match'}>{progress}%</strong>
-				</div>
-				<textarea
-					className="journal-v3-commitment__textarea"
-					value={commitment}
-					rows={12}
-					autoFocus
-					onPaste={(event) => event.preventDefault()}
-					onKeyDown={(event) => {
-						if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && complete) {
-							event.preventDefault();
-							void confirm();
-						}
-					}}
-					onChange={(event) => setCommitment(event.target.value)}
-					placeholder="از جمله اول شروع کن؛ متن باید کامل باشد…"
-					spellCheck={false}
-				/>
-
-				<div className="khan-progress journal-v3-commitment__progress"><span style={{ width: `${progress}%` }} /></div>
-				<div className="journal-v3-commitment__stats">
-					<div><span>شباهت</span><strong>{progress}%</strong></div>
-					<div><span>اختلاف باقی‌مانده</span><strong>{complete ? '۰' : differences.toLocaleString('fa-IR')}</strong></div>
-					<div><span>کاراکتر باقی‌مانده</span><strong>{remaining.toLocaleString('fa-IR')}</strong></div>
+					<strong style={{ fontSize: 26, color: complete ? 'var(--color-green)' : 'var(--text-accent)' }}>{progress}%</strong>
 				</div>
 
-				<div className={complete ? 'journal-v3-commitment__message is-complete' : 'journal-v3-commitment__message'}>
+				<label className="khan-commitment-input">
+					<span>مقایسه دقیق است؛ فقط نیم‌فاصله با فاصله معمولی برابر در نظر گرفته می‌شود.</span>
+					<textarea
+						value={commitment}
+						rows={13}
+						autoFocus
+						onPaste={(event) => event.preventDefault()}
+						onKeyDown={(event) => {
+							if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && complete) {
+								event.preventDefault();
+								void confirm();
+							}
+						}}
+						onChange={(event) => setCommitment(event.target.value)}
+						placeholder="از جمله اول شروع کن؛ متن را کامل و دقیق بنویس…"
+						spellCheck={false}
+						style={{ minHeight: 290, resize: 'vertical', lineHeight: 1.95, fontSize: 15, borderRadius: 12, padding: 16 }}
+					/>
+				</label>
+
+				<div className="khan-progress"><span style={{ width: `${progress}%` }} /></div>
+				<div className="trader-journal-form__grid" style={{ marginTop: 6 }}>
+					<div className="trader-journal-field trader-journal-field--readonly"><span>شباهت</span><strong>{progress}%</strong></div>
+					<div className="trader-journal-field trader-journal-field--readonly"><span>اختلاف باقی‌مانده</span><strong>{complete ? '۰' : differences.toLocaleString('fa-IR')}</strong></div>
+					<div className="trader-journal-field trader-journal-field--readonly"><span>کاراکتر باقی‌مانده</span><strong>{remaining.toLocaleString('fa-IR')}</strong></div>
+				</div>
+
+				<div className={complete ? 'trader-journal-plan-linked-trades' : 'trader-journal-form__error'} style={{ marginTop: 4 }}>
 					{complete
-						? '✓ متن کامل و صحیح است. می‌توانی جلسه امروز را شروع کنی.'
-						: 'مقایسه دقیق است؛ تنها تفاوت نیم‌فاصله با فاصله عادی نادیده گرفته می‌شود. اگر درصد نزدیک ۱۰۰ است، یک حرف یا علامت را جا انداخته‌ای.'}
+						? '✓ متن کامل و صحیح است. جلسه امروز آماده شروع است.'
+						: 'اگر درصد نزدیک ۱۰۰ است، یک حرف، علامت یا کلمه با متن مرجع تفاوت دارد. نیم‌فاصله به‌تنهایی باعث خطا نمی‌شود.'}
 				</div>
 			</section>
 
-			<footer className="khan-footer khan-footer--sticky journal-v3-commitment__footer">
+			<footer className="khan-footer khan-footer--sticky" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, borderRadius: 14 }}>
 				<button type="button" onClick={closeModal}>بستن</button>
-				<button type="button" className="mod-cta journal-v3-primary-action" disabled={!complete || saving} onClick={() => void confirm()}>
+				<button type="button" className="mod-cta" disabled={!complete || saving} onClick={() => void confirm()}>
 					{saving ? 'در حال ثبت تعهد امروز…' : complete ? 'ثبت تعهد و ورود به ژورنال' : `تکمیل متن · ${progress}%`}
 				</button>
-				<small>پس از ثبت موفق، این صفحه تا روز بعد نمایش داده نمی‌شود. میانبر پس از تکمیل: Ctrl + Enter</small>
+				<small style={{ flex: '1 1 280px' }}>پس از ثبت موفق، این صفحه تا روز بعد نمایش داده نمی‌شود. میانبر پس از تکمیل: Ctrl + Enter</small>
 			</footer>
 		</div>
 	);
@@ -150,6 +156,14 @@ export class DailyCommitmentModal extends Modal {
 	onOpen(): void {
 		this.modalEl.addClass('trader-journal-modal-shell', 'khan-wizard-modal', 'journal-v3-modal-shell');
 		this.contentEl.addClass('trader-journal-modal-content');
+		this.modalEl.style.width = 'min(1080px, calc(100vw - 32px))';
+		this.modalEl.style.maxWidth = 'calc(100vw - 32px)';
+		this.modalEl.style.height = 'min(900px, calc(100dvh - 40px))';
+		this.modalEl.style.maxHeight = 'calc(100dvh - 40px)';
+		this.modalEl.style.overflow = 'hidden';
+		this.contentEl.style.height = '100%';
+		this.contentEl.style.minHeight = '0';
+		this.contentEl.style.overflow = 'hidden';
 		this.contentEl.empty();
 		this.root = createRoot(this.contentEl);
 		this.root.render(
@@ -162,6 +176,8 @@ export class DailyCommitmentModal extends Modal {
 	onClose(): void {
 		this.root?.unmount();
 		this.root = null;
+		this.modalEl.removeAttribute('style');
+		this.contentEl.removeAttribute('style');
 		this.contentEl.empty();
 	}
 }
