@@ -3,61 +3,40 @@ import type TraderJournalPlugin from '../main';
 import { getTranslator } from '../i18n';
 import { rebuildDailyNoteStats } from '../trades/storage';
 import { openTraderJournalCalendar } from '../ui/TradeCalendarView';
-import { TradePlanModal } from '../ui/TradePlanModal';
 import { TraderJournalModal } from '../ui/TraderJournalModal';
-import { TradeSetupModal } from '../ui/TradeSetupModal';
-import { KhanDecisionWizardModal } from '../ui/KhanDecisionWizardModal';
+import { AccountManagerModal } from '../ui/AccountManagerModal';
 import { openTraderJournalDashboard } from '../dashboard/DashboardView';
+import { runAfterDailyCommitment } from '../ui/DailyCommitmentModal';
 
 export function registerCommands(plugin: TraderJournalPlugin) {
 	const tr = getTranslator(plugin.settings.language);
 
 	plugin.addCommand({
-		id: 'open-khan-decision-wizard',
-		name: 'راهنمای تصمیم ستاپ‌های خان',
+		id: 'open-dashboard',
+		name: 'باز کردن ژورنال معاملات',
+		callback: () => openTraderJournalDashboard(plugin),
+	});
+
+	plugin.addCommand({
+		id: 'add-live-trade',
+		name: 'ثبت معامله جدید',
 		callback: () => {
-			new KhanDecisionWizardModal(plugin.app, plugin).open();
+			runAfterDailyCommitment(plugin, () => new TraderJournalModal(plugin.app, plugin, 'live').open());
 		},
 	});
 
 	plugin.addCommand({
 		id: 'add-backtest-trade',
-		name: tr('command.addBacktestTrade'),
+		name: 'ثبت بک‌تست جدید',
 		callback: () => {
-			new TraderJournalModal(plugin.app, plugin).open();
+			runAfterDailyCommitment(plugin, () => new TraderJournalModal(plugin.app, plugin, 'backtest').open());
 		},
 	});
 
 	plugin.addCommand({
-		id: 'add-live-trade',
-		name: tr('command.addLiveTrade'),
-		callback: () => {
-			new TraderJournalModal(plugin.app, plugin, 'live').open();
-		},
-	});
-
-	plugin.addCommand({
-		id: 'add-trade-plan',
-		name: tr('command.addTradePlan'),
-		callback: () => {
-			new TradePlanModal(plugin.app, plugin).open();
-		},
-	});
-
-	plugin.addCommand({
-		id: 'add-trade-setup',
-		name: tr('command.addTradeSetup'),
-		callback: () => {
-			new TradeSetupModal(plugin.app, plugin).open();
-		},
-	});
-
-	plugin.addCommand({
-		id: 'open-dashboard',
-		name: tr('command.openDashboard'),
-		callback: () => {
-			void openTraderJournalDashboard(plugin);
-		},
+		id: 'manage-trading-accounts',
+		name: 'مدیریت حساب‌ها و قوانین سرمایه',
+		callback: () => new AccountManagerModal(plugin.app, plugin).open(),
 	});
 
 	plugin.addCommand({
@@ -93,13 +72,12 @@ async function recalculateCurrentJournalStats(plugin: TraderJournalPlugin): Prom
 		}
 
 		const invalidBlockSuffix = result.stats.invalidTradeBlockCount === 1 ? '' : 's';
-		const invalidBlockMessage =
-			result.stats.invalidTradeBlockCount > 0
-				? tr('notice.invalidBlocksSkipped', {
-						count: result.stats.invalidTradeBlockCount,
-						plural: invalidBlockSuffix,
-					})
-				: '';
+		const invalidBlockMessage = result.stats.invalidTradeBlockCount > 0
+			? tr('notice.invalidBlocksSkipped', {
+				count: result.stats.invalidTradeBlockCount,
+				plural: invalidBlockSuffix,
+			})
+			: '';
 		new Notice(
 			tr('notice.recalculatedStats', {
 				count: result.stats.tradeCount,
