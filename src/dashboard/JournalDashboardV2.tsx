@@ -362,9 +362,9 @@ function calculateJournalAnalytics(trades: JournalCalendarTrade[]): JournalAnaly
 
 	const setups = [...setupMap.entries()].map(([name, stat]) => ({ name, ...stat, averageR: stat.count ? stat.netR / stat.count : 0 })).sort((a, b) => b.netR - a.netR || b.count - a.count);
 	const daily = [...dayMap.values()].sort((a, b) => a.date.localeCompare(b.date));
-	const bestDay = daily.length ? [...daily].sort((a, b) => b.netR - a.netR)[0] : null;
-	const worstDay = daily.length ? [...daily].sort((a, b) => a.netR - b.netR)[0] : null;
-	const topMistake = mistakeMap.size ? [...mistakeMap.entries()].map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count)[0] : null;
+	const bestDay = daily.length ? ([...daily].sort((a, b) => b.netR - a.netR)[0] ?? null) : null;
+	const worstDay = daily.length ? ([...daily].sort((a, b) => a.netR - b.netR)[0] ?? null) : null;
+	const topMistake = mistakeMap.size ? ([...mistakeMap.entries()].map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count)[0] ?? null) : null;
 	const wins = completed.filter((item) => item.value > 0).length;
 	const losses = completed.filter((item) => item.value < 0).length;
 	const breakeven = completed.filter((item) => item.value === 0).length;
