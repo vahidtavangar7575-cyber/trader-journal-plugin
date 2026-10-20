@@ -1,7 +1,7 @@
 {
 	"name": "trader-journal-plugin",
-	"version": "1.13.0",
-	"description": "Persian/RTL trading cockpit centered on the exact Khan Presentation flow, simplified always-selectable accounts, comprehensive Persian reports, risk engine, position sizing, screenshots, dashboard, and review.",
+	"version": "2.0.0",
+	"description": "Persian/RTL journal-first trading workspace for Obsidian: daily commitment, fast trade capture, multi-account risk tracking, structured screenshots, psychology reviews, analytics charts, and weekly/monthly reports. Strategy decisions stay on the trader's PDF workflow.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
