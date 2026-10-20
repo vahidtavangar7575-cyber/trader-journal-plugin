@@ -18,8 +18,8 @@ export function syncClosedAtDate(openedAt: string, previousOpenedAt: string, clo
 }
 
 export function getDateTimeDatePart(value: string): string {
-	const [date] = value.split('T');
-	return date && DATE_KEY_PATTERN.test(date) ? date : '';
+	const date = value.split('T', 1)[0] ?? '';
+	return DATE_KEY_PATTERN.test(date) ? date : '';
 }
 
 export function getDateTimeTimePart(value: string): string {
@@ -55,33 +55,31 @@ export function normalizeDateInput(value: string): string {
 	const raw = toEnglishDigits(value).trim().replace(/\s+/g, '');
 	if (!raw) return '';
 
-	let year: number;
-	let month: number;
-	let day: number;
-	let match = raw.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/);
-	if (match) {
-		year = Number(match[1]);
-		month = Number(match[2]);
-		day = Number(match[3]);
-	} else {
-		match = raw.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);
-		if (!match) return '';
-		month = Number(match[1]);
-		day = Number(match[2]);
-		year = Number(match[3]);
+	const isoMatch = /^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/.exec(raw);
+	if (isoMatch) {
+		const year = Number(isoMatch[1] ?? '');
+		const month = Number(isoMatch[2] ?? '');
+		const day = Number(isoMatch[3] ?? '');
+		return formatValidatedDate(year, month, day);
 	}
 
-	if (!isValidCalendarDate(year, month, day)) return '';
-	return `${String(year).padStart(4, '0')}-${padDatePart(month)}-${padDatePart(day)}`;
+	const usMatch = /^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/.exec(raw);
+	if (!usMatch) return '';
+	const month = Number(usMatch[1] ?? '');
+	const day = Number(usMatch[2] ?? '');
+	const year = Number(usMatch[3] ?? '');
+	return formatValidatedDate(year, month, day);
 }
 
 export function normalizeTimeInput(value: string): string {
 	const raw = toEnglishDigits(value).trim().replace('.', ':');
-	const compact = raw.match(/^(\d{1,2})(\d{2})$/);
-	const candidate = compact ? `${compact[1]}:${compact[2]}` : raw;
-	const match = candidate.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+	const compact = /^(\d{1,2})(\d{2})$/.exec(raw);
+	const candidate = compact ? `${compact[1] ?? ''}:${compact[2] ?? ''}` : raw;
+	const match = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(candidate);
 	if (!match) return '';
-	return `${padDatePart(Number(match[1]))}:${match[2]}`;
+	const hour = Number(match[1] ?? '');
+	const minute = match[2] ?? '';
+	return `${padDatePart(hour)}:${minute}`;
 }
 
 export function combineDateTimeInput(dateValue: string, timeValue: string): string {
@@ -134,6 +132,11 @@ function formatLocalIsoString(date: Date): string {
 		`T${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}:${padDatePart(date.getSeconds())}`,
 		`${sign}${padDatePart(offsetHours)}:${padDatePart(offsetRemainderMinutes)}`,
 	].join('');
+}
+
+function formatValidatedDate(year: number, month: number, day: number): string {
+	if (!isValidCalendarDate(year, month, day)) return '';
+	return `${String(year).padStart(4, '0')}-${padDatePart(month)}-${padDatePart(day)}`;
 }
 
 function isValidCalendarDate(year: number, month: number, day: number): boolean {
