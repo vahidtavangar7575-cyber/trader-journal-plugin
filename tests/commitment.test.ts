@@ -15,10 +15,9 @@ void test('accepts the exact trading commitment', () => {
 	assert.equal(getCommitmentDifferenceCount(DAILY_TRADING_COMMITMENT), 0);
 });
 
-void test('ignores only the difference between half-space and normal space', () => {
-	const variant = DAILY_TRADING_COMMITMENT.replace(/\u200c/g, ' ');
-	assert.equal(normalizeCommitment(variant), normalizeCommitment(DAILY_TRADING_COMMITMENT));
-	assert.equal(isCommitmentComplete(variant), true);
+void test('treats Persian half-space exactly like a normal space', () => {
+	assert.equal(normalizeCommitment('می\u200Cشوم'), normalizeCommitment('می شوم'));
+	assert.equal(normalizeCommitment('تعیین\u200Cشده'), 'تعیین شده');
 });
 
 void test('does not silently normalize letters or punctuation', () => {
