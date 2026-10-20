@@ -32,16 +32,20 @@ export class TraderJournalModal extends Modal {
 		this.titleEl.empty();
 		this.modalEl.addClass('trader-journal-modal-shell', 'journal-v3-modal-shell');
 		this.contentEl.addClass('trader-journal-modal-content');
-		this.modalEl.style.width = 'min(1180px, calc(100vw - 32px))';
-		this.modalEl.style.maxWidth = 'calc(100vw - 32px)';
-		this.modalEl.style.height = 'min(900px, calc(100dvh - 40px))';
-		this.modalEl.style.maxHeight = 'calc(100dvh - 40px)';
-		this.modalEl.style.overflow = 'hidden';
-		this.contentEl.style.display = 'flex';
-		this.contentEl.style.flexDirection = 'column';
-		this.contentEl.style.height = '100%';
-		this.contentEl.style.minHeight = '0';
-		this.contentEl.style.overflow = 'hidden';
+		this.modalEl.setCssProps({
+			width: 'min(1180px, calc(100vw - 32px))',
+			'max-width': 'calc(100vw - 32px)',
+			height: 'min(900px, calc(100dvh - 40px))',
+			'max-height': 'calc(100dvh - 40px)',
+			overflow: 'hidden',
+		});
+		this.contentEl.setCssProps({
+			display: 'flex',
+			'flex-direction': 'column',
+			height: '100%',
+			'min-height': '0',
+			overflow: 'hidden',
+		});
 		this.contentEl.empty();
 		this.root = createRoot(this.contentEl);
 		this.root.render(
