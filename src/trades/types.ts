@@ -1,3 +1,5 @@
+import type { TradePsychologySnapshot } from '../behavior/tradeTherapist';
+
 export const TRADE_CODE_BLOCK_LANGUAGE = 'trader-journal-trade';
 
 export type TradeJournalType = 'backtest' | 'live';
@@ -80,6 +82,7 @@ export interface TradeEntry {
 	market_arrival_context?: string;
 	pre_trade_emotion?: string;
 	urge_to_chase?: number | string;
+	psychology?: TradePsychologySnapshot;
 	risk_rule_trade_number?: number | string;
 	risk_rule_recommended_pct?: number | string;
 	risk_rule_day_base_pct?: number | string;
