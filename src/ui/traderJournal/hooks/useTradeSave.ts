@@ -230,6 +230,7 @@ function createTradeEntry(args: CreateTradeEntryArgs): TradeEntry {
 		tags: parseTradeTags(form.tags),
 		notes: form.notes.trim(),
 		opened_at: args.openedAt,
+		psychology: form.psychology,
 		...(form.accountId ? { account_id: form.accountId } : {}),
 		...(form.accountEquity.trim() ? { account_equity: Number(form.accountEquity) } : {}),
 		...(form.riskPct.trim() ? { risk_pct: Number(form.riskPct) } : {}),
