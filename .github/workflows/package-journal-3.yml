@@ -36,7 +36,22 @@ jobs:
         run: npm test
 
       - name: Build plugin
-        run: npm run build
+        shell: bash
+        run: |
+          set +e
+          npm run build 2>&1 | tee build.log
+          code=${PIPESTATUS[0]}
+          echo "build_exit_code=$code" >> "$GITHUB_ENV"
+          exit $code
+
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: journal-3.1-build-diagnostics
+          path: build.log
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Prepare installable plugin package
         shell: bash
