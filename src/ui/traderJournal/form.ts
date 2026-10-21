@@ -13,6 +13,7 @@ import type {
 	TradeSession,
 	TradeSide,
 } from '../../trades/types';
+import { normalizePsychologySnapshot, type TradePsychologySnapshot } from '../../behavior/tradeTherapist';
 import type TraderJournalPlugin from '../../main';
 import type { Translator } from '../../i18n';
 import { createTradeReviewFormState } from '../TradeReviewFields';
@@ -44,6 +45,7 @@ export interface TradeFormState {
 	marketArrivalContext: string;
 	preTradeEmotion: PreTradeEmotion;
 	urgeToChase: string;
+	psychology: TradePsychologySnapshot;
 	images: TradeImage[];
 	notes: string;
 	openedAt: string;
@@ -83,6 +85,7 @@ export function createInitialTradeForm(
 		marketArrivalContext: stringifyValue(initialTrade?.market_arrival_context),
 		preTradeEmotion: normalizePreTradeEmotion(initialTrade?.pre_trade_emotion),
 		urgeToChase: stringifyValue(initialTrade?.urge_to_chase),
+		psychology: normalizePsychologySnapshot(initialTrade?.psychology),
 		images: normalizeTradeImages(initialTrade?.images),
 		notes: stripGeneratedPersianReport(initialTrade?.notes),
 		openedAt: toDateTimeLocalInput(openedAt),
@@ -128,7 +131,6 @@ export function validateTradeForm(
 ): string | null {
 	if (!normalizeSymbol(form.symbol)) return tr('error.symbolRequired');
 	if (!form.timeframe) return tr('error.timeframeRequired');
-	// Setup is intentionally optional in Journal First: save the trade now and complete it later from the PDF.
 
 	if (!usesExecutionLifecycle && journalType === 'backtest') {
 		const rr = form.rr.trim() ? Number(form.rr) : Number.NaN;
@@ -141,6 +143,10 @@ export function validateTradeForm(
 	if (form.urgeToChase.trim()) {
 		const urge = Number(form.urgeToChase);
 		if (!Number.isFinite(urge) || urge < 0 || urge > 10) return 'شدت میل به تعقیب قیمت باید بین ۰ تا ۱۰ باشد.';
+	}
+	const processScore = form.psychology.post?.process_score;
+	if (processScore !== undefined && (!Number.isFinite(processScore) || processScore < 0 || processScore > 10)) {
+		return 'امتیاز فرایند باید بین ۰ تا ۱۰ باشد.';
 	}
 
 	if (usesExecutionLifecycle) {
