@@ -1,5 +1,12 @@
 import type { TradeEntry, TradeReviewMistakeTag } from './types';
 import { formatDateTime, formatDuration, formatPrice, formatRr, getHoldingMinutes, normalizeTradeImages, stringifyValue } from './format';
+import {
+  buildTherapistSummary,
+  MENTAL_BUG_LABELS,
+  MOTIVATION_LABELS,
+  SOMATIC_LABELS,
+  normalizePsychologySnapshot,
+} from '../behavior/tradeTherapist';
 
 export const PERSIAN_REPORT_START = '──────── گزارش خودکار فارسی معامله ────────';
 export const PERSIAN_REPORT_END = '──────── پایان گزارش خودکار ────────';
@@ -11,7 +18,6 @@ export function stripGeneratedPersianReport(value: unknown): string {
 }
 
 export function attachPersianTradeReport(trade: TradeEntry): TradeEntry {
-  if (!trade.khan_setup) return trade;
   const userNotes = stripGeneratedPersianReport(trade.notes);
   const report = buildPersianTradeReport(trade);
   return {
@@ -34,30 +40,31 @@ export function buildPersianTradeReport(trade: TradeEntry): string {
   add('وضعیت معامله', stringifyValue(trade.status) === 'closed' ? 'بسته‌شده' : 'باز / در انتظار نتیجه');
   add('نماد', trade.symbol);
   add('جهت', sideLabel(trade.side));
+  add('ستاپ ثبت‌شده', trade.setup || khanSetupLabel(trade.khan_setup));
   add('تایم‌فریم اجرا', trade.timeframe);
   add('سشن', sessionLabel(trade.session));
   add('زمان ورود', formatDateTime(trade.opened_at));
   add('زمان خروج', formatDateTime(trade.closed_at));
-  const holding = formatDuration(getHoldingMinutes(trade));
-  add('مدت نگهداری', holding);
+  add('مدت نگهداری', formatDuration(getHoldingMinutes(trade)));
 
-  lines.push('');
-  lines.push('【 منطق خان و مسیر دقیق Presentation 】');
-  add('ستاپ ثبت‌شده', khanSetupLabel(trade.khan_setup));
-  add('نسخه موتور قوانین', trade.khan_rule_version);
-  add('صفحه نتیجه در Presentation', trade.khan_result_page);
-  const pages = asArray(trade.khan_source_pages).map(String).filter(Boolean);
-  if (pages.length) lines.push(`مسیر صفحات منبع: ${pages.join(' ← ')}`);
-  const sourceDocument = stringifyValue(trade.khan_source_document) || 'Presentation - Copy.pdf (58 pages)';
-  lines.push(`منبع تصمیم: ${sourceDocument}`);
-  if (trade.khan_source_exact === true) lines.push('وضعیت تطابق: مسیر تصمیم از گراف منبع Presentation ثبت شده و پاسخ‌ها قابل بازسازی‌اند.');
-  const decisionPath = normalizeDecisionPath(trade.khan_decision_path);
-  if (decisionPath.length) {
-    lines.push('پاسخ‌های ثبت‌شده در مسیر:');
-    decisionPath.forEach((item, index) => lines.push(`  ${index + 1}) صفحه ${item.page}: ${item.answerLabel}`));
+  if (trade.khan_setup || trade.khan_source_pages || trade.khan_decision_path) {
+    lines.push('');
+    lines.push('【 منطق خان و مسیر Presentation 】');
+    add('ستاپ خان', khanSetupLabel(trade.khan_setup));
+    add('نسخه موتور قوانین', trade.khan_rule_version);
+    add('صفحه نتیجه در Presentation', trade.khan_result_page);
+    const pages = asArray(trade.khan_source_pages).map(String).filter(Boolean);
+    if (pages.length) lines.push(`مسیر صفحات منبع: ${pages.join(' ← ')}`);
+    add('منبع تصمیم', trade.khan_source_document);
+    if (trade.khan_source_exact === true) lines.push('وضعیت تطابق: مسیر تصمیم ثبت‌شده از گراف Presentation قابل بازسازی است.');
+    const decisionPath = normalizeDecisionPath(trade.khan_decision_path);
+    if (decisionPath.length) {
+      lines.push('پاسخ‌های ثبت‌شده در مسیر:');
+      decisionPath.forEach((item, index) => lines.push(`  ${index + 1}) صفحه ${item.page}: ${item.answerLabel}`));
+    }
+    add('زمینه عملیاتی هنگام ورود', trade.khan_operational_context);
+    add('راهنمای عملیاتی', trade.khan_operational_guidance);
   }
-  add('زمینه عملیاتی هنگام ورود به فرایند', trade.khan_operational_context);
-  add('راهنمای عملیاتی ثبت‌شده', trade.khan_operational_guidance);
 
   lines.push('');
   lines.push('【 حساب و مدیریت سرمایه 】');
@@ -68,7 +75,7 @@ export function buildPersianTradeReport(trade: TradeEntry): string {
   addNumber('موجودی قبل از معامله', trade.account_balance_before, lines, trade.account_currency);
   addNumber('Equity هنگام ورود', trade.account_equity, lines, trade.account_currency);
   addNumber('موجودی بعد از معامله', trade.account_balance_after, lines, trade.account_currency);
-  addPercent('ریسک نوشته‌شده در مسیر Presentation', trade.khan_risk_pct, lines);
+  addPercent('ریسک مسیر Presentation', trade.khan_risk_pct, lines);
   addPercent('ریسک پیشنهادی موتور مدیریت سرمایه', trade.risk_rule_recommended_pct, lines);
   addPercent('ریسک واقعی اجراشده', trade.risk_pct, lines);
   addNumber('مبلغ واقعی در معرض ریسک', trade.risk_amount, lines, trade.account_currency);
@@ -76,8 +83,7 @@ export function buildPersianTradeReport(trade: TradeEntry): string {
   addPercent('پایه ریسک روز', trade.risk_rule_day_base_pct, lines);
   addPercent('پایه ریسک هفته', trade.risk_rule_week_base_pct, lines);
   if (trade.risk_rule_violation === true) lines.push('وضعیت انضباط سرمایه: ⚠ حداقل یک تخطی از قوانین ثبت شده است.');
-  const warnings = asArray(trade.risk_rule_warnings).map(String).filter(Boolean);
-  warnings.forEach((warning) => lines.push(`  هشدار ثبت‌شده: ${warning}`));
+  asArray(trade.risk_rule_warnings).map(String).filter(Boolean).forEach((warning) => lines.push(`  هشدار ثبت‌شده: ${warning}`));
 
   lines.push('');
   lines.push('【 اجرای معامله 】');
@@ -93,11 +99,13 @@ export function buildPersianTradeReport(trade: TradeEntry): string {
   addPercent('سود/زیان درصدی', trade.pnl_pct, lines);
 
   lines.push('');
-  lines.push('【 وضعیت ذهنی قبل از معامله 】');
+  lines.push('【 وضعیت ذهنی سریع قبل از معامله 】');
   add('وضعیت بازار هنگام تصمیم', trade.market_arrival_context);
   add('حالت ذهنی قبل از ورود', emotionLabel(trade.pre_trade_emotion));
   const chase = stringifyValue(trade.urge_to_chase);
   if (chase) lines.push(`میل به تعقیب قیمت: ${chase} از ۱۰`);
+
+  appendPsychologyReport(lines, trade);
 
   lines.push('');
   lines.push('【 ارزیابی کیفیت اجرا و تجربه 】');
@@ -108,8 +116,7 @@ export function buildPersianTradeReport(trade: TradeEntry): string {
     add('زمان‌بندی ورود', entryTimingLabel(trade.review.entry_timing));
     add('پایبندی به پلن', planAdherenceLabel(trade.review.plan_adherence));
     const mistakes = Array.isArray(trade.review.mistake_tags) ? trade.review.mistake_tags : [];
-    if (mistakes.length) lines.push(`خطاهای ثبت‌شده: ${mistakes.map(mistakeLabel).join('، ')}`);
-    else lines.push('خطاهای ثبت‌شده: موردی ثبت نشده است.');
+    lines.push(mistakes.length ? `خطاهای ثبت‌شده: ${mistakes.map(mistakeLabel).join('، ')}` : 'خطاهای ثبت‌شده: موردی ثبت نشده است.');
     add('کاری که درست انجام شد', trade.review.what_went_well);
     add('درس اصلی معامله', trade.review.lesson);
     add('اقدام مشخص برای معامله بعد', trade.review.next_action);
@@ -119,16 +126,13 @@ export function buildPersianTradeReport(trade: TradeEntry): string {
   const images = normalizeTradeImages(trade.images);
   lines.push('');
   lines.push('【 تصاویر مستند معامله 】');
-  if (!images.length) {
-    lines.push('تصویری ثبت نشده است.');
-  } else {
-    images.forEach((image, index) => lines.push(`  ${index + 1}) ${image.label || 'تصویر معامله'} — ${image.value}`));
-  }
+  if (!images.length) lines.push('تصویری ثبت نشده است.');
+  else images.forEach((image, index) => lines.push(`  ${index + 1}) ${image.label || 'تصویر معامله'} — ${image.value}`));
 
   lines.push('');
   lines.push('【 جمع‌بندی خوانا 】');
   if (stringifyValue(trade.status) !== 'closed') {
-    lines.push('این معامله هنوز باز است؛ نتیجه و ارزیابی نهایی باید بعد از بسته‌شدن روی همین رکورد تکمیل شود.');
+    lines.push('این معامله هنوز باز است؛ نتیجه، تصویر خروج و Review نهایی بعداً روی همین رکورد تکمیل می‌شوند.');
   } else {
     const result = resultLabel(trade.result) || 'نامشخص';
     const realizedR = formatRr(trade.rr) || 'نامشخص';
@@ -140,6 +144,75 @@ export function buildPersianTradeReport(trade: TradeEntry): string {
   lines.push('');
   lines.push(PERSIAN_REPORT_END);
   return lines.join('\n');
+}
+
+function appendPsychologyReport(lines: string[], trade: TradeEntry): void {
+  const psychology = normalizePsychologySnapshot(trade.psychology);
+  const pre = psychology.pre;
+  const inTrade = psychology.in_trade;
+  const post = psychology.post;
+  const hasPsychology = Boolean(pre || inTrade || post);
+  if (!hasPsychology) return;
+
+  lines.push('');
+  lines.push('【 ژورنال حسی و شناختی · ترید تراپیست 】');
+  if (pre?.sensory_vessel) lines.push(`ظرف حسی قبل از ورود: ${sensoryVesselLabel(pre.sensory_vessel)}`);
+  if (pre?.physical_signals?.length) lines.push(`نشانه‌های جسمی: ${pre.physical_signals.map((signal) => SOMATIC_LABELS[signal]).join('، ')}`);
+  if (pre?.motivation) lines.push(`انگیزه واقعی ورود: ${MOTIVATION_LABELS[pre.motivation]}`);
+  if (typeof pre?.stop_cost_accepted === 'boolean') lines.push(`پذیرش حد ضرر به‌عنوان هزینه سرمایه‌گذاری: ${pre.stop_cost_accepted ? 'بله' : 'خیر / مقاومت ذهنی وجود داشت'}`);
+  addOptional(lines, 'مونولوگ درونی', pre?.internal_monologue);
+  if (inTrade?.counter_candle_reaction) lines.push(`واکنش به کندل خلاف جهت: ${counterReactionLabel(inTrade.counter_candle_reaction)}`);
+  if (inTrade?.impulse_action) lines.push(`تکانه رفتاری حین معامله: ${impulseLabel(inTrade.impulse_action)}`);
+  if (inTrade?.mental_filter) lines.push(`فیلتر ذهن حین معامله: ${mentalFilterLabel(inTrade.mental_filter)}`);
+  addOptional(lines, 'یادداشت حین معامله', inTrade?.note);
+  if (typeof post?.process_score === 'number') lines.push(`امتیاز فرایند مستقل از نتیجه: ${post.process_score} از ۱۰`);
+  if (post?.mental_map_bug) lines.push(`باگ نقشه ذهنی انتخاب‌شده: ${MENTAL_BUG_LABELS[post.mental_map_bug]}`);
+  addOptional(lines, 'کد بازنویسی مغز', post?.reprogramming_patch);
+  if (typeof post?.sensory_reset_done === 'boolean') lines.push(`تخلیه ظرف حسی: ${post.sensory_reset_done ? 'انجام شد' : 'هنوز انجام نشده'}`);
+
+  const summary = buildTherapistSummary(trade);
+  if (summary.length) {
+    lines.push('جمع‌بندی ترید تراپیست (قاعده‌محور و غیرپزشکی):');
+    summary.forEach((item) => lines.push(`  • ${item}`));
+  }
+}
+
+function addOptional(lines: string[], label: string, value: unknown): void {
+  const text = stringifyValue(value);
+  if (text) lines.push(`${label}: ${text}`);
+}
+
+function sensoryVesselLabel(value: string): string {
+  if (value === 'clear') return 'پاک و خنثی';
+  if (value === 'mixed') return 'کمی درگیر';
+  if (value === 'loaded') return 'بار معامله قبلی همراه بود';
+  return value;
+}
+
+function counterReactionLabel(value: string): string {
+  if (value === 'steady') return 'خنثی و پایدار';
+  if (value === 'uneasy') return 'نا‌آرام';
+  if (value === 'panic') return 'پانیک / واکنش بقایی';
+  return value;
+}
+
+function impulseLabel(value: string): string {
+  const labels: Record<string, string> = {
+    none: 'تکانه‌ای ثبت نشد',
+    move_stop: 'میل/اقدام به جابه‌جایی حد ضرر',
+    remove_stop: 'میل/اقدام به حذف حد ضرر',
+    double_down: 'اضافه‌کردن حجم / مارتینگل',
+    panic_close: 'خروج ترسیده و زودهنگام',
+    hedge: 'هج عجولانه',
+  };
+  return labels[value] ?? value;
+}
+
+function mentalFilterLabel(value: string): string {
+  if (value === 'balanced') return 'دیدن شواهد موافق و مخالف';
+  if (value === 'confirmation_only') return 'فقط شواهد تأییدکننده سناریوی خودم';
+  if (value === 'threat_only') return 'تمرکز افراطی روی تهدید';
+  return value;
 }
 
 function addNumber(label: string, value: unknown, lines: string[], currency: unknown): void {
