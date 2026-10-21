@@ -165,6 +165,7 @@ function createLiveForm(overrides: Partial<TradeFormState> = {}): TradeFormState
 		marketArrivalContext: '',
 		preTradeEmotion: 'neutral',
 		urgeToChase: '',
+		psychology: { schema_version: 1 },
 		images: [],
 		notes: '',
 		openedAt: '2026-08-20T09:30',
