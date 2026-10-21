@@ -1,7 +1,7 @@
 {
 	"name": "trader-journal-plugin",
-	"version": "2.0.0",
-	"description": "Persian/RTL journal-first trading workspace for Obsidian: daily commitment, fast trade capture, multi-account risk tracking, structured screenshots, psychology reviews, analytics charts, and weekly/monthly reports. Strategy decisions stay on the trader's PDF workflow.",
+	"version": "3.1.0",
+	"description": "Persian/RTL premium journal-first trading workspace for Obsidian: daily commitment, fast trade capture, sensory-cognitive journaling, multi-account risk tracking, structured screenshots, analytics charts, and weekly/monthly reports.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
