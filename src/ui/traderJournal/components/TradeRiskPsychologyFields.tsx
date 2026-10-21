@@ -2,6 +2,7 @@ import type { ChangeEvent } from 'react';
 import type { TradeFormState } from '../form';
 import { calculateRiskAmount } from '../form';
 import { PositionSizeCalculator } from './PositionSizeCalculator';
+import { TradeTherapistFields } from './TradeTherapistFields';
 
 interface Props {
 	form: TradeFormState;
@@ -35,13 +36,21 @@ export function TradeRiskPsychologyFields({
 	const riskAmount = calculateRiskAmount(form.accountEquity, form.riskPct);
 	const chaseLevel = Number(form.urgeToChase);
 	const showChaseWarning = Number.isFinite(chaseLevel) && chaseLevel >= 7;
+	const isClosed = Boolean(form.closedAt || form.exitPrice);
+
+	const updatePsychology = (psychology: TradeFormState['psychology']) => {
+		// Keep the psychology snapshot inside the same trade draft. Trigger the normal parent update
+		// immediately so React receives a fresh form object without adding another blocking workflow.
+		form.psychology = psychology;
+		onPreTradeEmotionChange(form.preTradeEmotion);
+	};
 
 	return (
 		<>
 			<section className="trader-journal-review-form">
 				<div className="trader-journal-review-form__header">
 					<h3>ریسک واقعی، حجم و وضعیت ذهنی قبل از معامله</h3>
-					<p>عدد پیشنهادی سیستم حکم نیست؛ عددی که واقعاً با آن وارد می‌شوی/شدی را اینجا ثبت کن تا بعداً انضباط واقعی قابل اندازه‌گیری باشد.</p>
+					<p>عدد پیشنهادی سیستم حکم نیست؛ عددی که واقعاً با آن وارد می‌شوی/شدی را ثبت کن تا انضباط واقعی قابل اندازه‌گیری باشد.</p>
 				</div>
 
 				<div className="trader-journal-form__grid">
@@ -114,6 +123,8 @@ export function TradeRiskPsychologyFields({
 
 				{showChaseWarning ? <div className="trader-journal-form__error">میل به تعقیب قیمت بالاست. قبل از ورود دوباره بررسی کن آیا Trigger هنوز معتبر است یا فقط از حرکت از دست‌رفته ناراحت شده‌ای.</div> : null}
 			</section>
+
+			<TradeTherapistFields value={form.psychology} isClosed={isClosed} onChange={updatePsychology} />
 
 			<PositionSizeCalculator
 				form={form}
